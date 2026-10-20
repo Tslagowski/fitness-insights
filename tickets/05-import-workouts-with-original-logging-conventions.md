@@ -1,6 +1,6 @@
 # 05: Import workouts with original logging conventions
 
-**Status:** in-progress (implemented 2026-10-20; live migration and owner import pending)
+**Status:** done (live verified 2026-10-20; duration unit check remains a ticket 14 release gate)
 
 **What to build:** Import workout CSV or workbook workout details, then browse the saved sessions and sets exactly as logged.
 
@@ -8,13 +8,13 @@
 
 **Acceptance criteria:**
 
-- [ ] CSV is authoritative on overlapping represented dates, workbook details are fallback, and absent dates are preserved. Original order and legitimate identical sets are retained.
-- [ ] Reps remain per side and dumbbell loads per hand. Only logged resistance is used; machine base weight and inferred body weight are never added.
-- [ ] Negative assistance, blank loads/reps, timed sets, set type, RIR, and source units remain distinguishable. Missing values do not become zero.
-- [ ] Sessions use the documented date/name/duration grouping, with its inability to distinguish identical same-day sessions disclosed. Do not invent durable source IDs.
-- [ ] Durations preserve raw values and use a configurable, visibly provisional seconds interpretation; session duration is not summed across sets.
-- [ ] Original variants/equipment remain separate. An explicit cosmetic alias can group a rename without altering raw records or silently merging distinct movements.
-- [ ] Workout-only import, corrections, reimports, owner access, and undo work through the shared workflow.
+- [x] CSV is authoritative on overlapping represented dates, workbook details are fallback, and absent dates are preserved. Original order and legitimate identical sets are retained.
+- [x] Reps remain per side and dumbbell loads per hand. Only logged resistance is used; machine base weight and inferred body weight are never added.
+- [x] Negative assistance, blank loads/reps, timed sets, set type, RIR, and source units remain distinguishable. Missing values do not become zero.
+- [x] Sessions use the documented date/name/duration grouping, with its inability to distinguish identical same-day sessions disclosed. Do not invent durable source IDs.
+- [x] Durations preserve raw values and use a configurable, visibly provisional seconds interpretation; session duration is not summed across sets.
+- [x] Original variants/equipment remain separate. An explicit cosmetic alias can group a rename without altering raw records or silently merging distinct movements.
+- [x] Workout-only import, corrections, reimports, owner access, and undo work through the shared workflow.
 
 **Verification evidence:** Supplied CSV has 3,568 sets over 190 observed workout dates. No conversion may add the separate exported machine-base field. Verify a duration against the source app before release, not by guessing from magnitude.
 
@@ -31,3 +31,10 @@ Verified locally:
 - Full suite: 66 unit/UI/database tests and 6 browser tests; typecheck and both production builds pass.
 
 Not yet verified live: the migration on Supabase, the owner importing the workout CSV on the hosted app, and the one-session duration check against MacroFactor (ticket 14 release gate).
+
+## Live verification (2026-10-20)
+
+- Database migrations run 39449517176 applied `202610200003_workout_detail.sql`; Deploy GitHub Pages run 39449874747 passed (the first Check run for the ticket failed on a test-file type error, fixed in 2e8dd10 and passing in run 39449668241).
+- Anonymous calls to `workout_day_sets`, reads of `workout_days`, reads and writes of `exercise_aliases`, `commit_sources`, and workout CSV uploads are refused.
+- The owner imported the workout CSV on the hosted app and reported that it worked (owner-reported).
+- Still open (release gate, ticket 14): compare one session's duration with MacroFactor's display to confirm the seconds interpretation.

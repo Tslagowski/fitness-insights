@@ -1,6 +1,6 @@
 # 06: Review suspicious values and incomplete days
 
-**Status:** in-progress (implemented 2026-10-20; live migration and owner review pending)
+**Status:** in-progress (deployed 2026-10-20: migration run 39474551550, Check 39474551870, Deploy 39474730495, anonymous access refused; owner review on the hosted app pending)
 
 **What to build:** Open a review queue, keep or exclude a suspicious value, mark a nutrition day incomplete, and inspect which dates/fields are eligible for analysis.
 
