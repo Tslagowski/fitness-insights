@@ -217,6 +217,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 12 | Portable backup and restore | Pending |
 | 13 | Service/quota failure recovery | Pending |
 | 14 | Complete mobile and cross-device release verification | Pending |
+| 15 | Record daily energy (owner idea; proposed) | Proposed, not scheduled; comparison with other data needs a scope decision |
 
 ## 7. Acceptance criteria
 
