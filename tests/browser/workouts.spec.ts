@@ -14,7 +14,7 @@ test('on a phone, the owner imports workouts, reads sessions as logged, and alia
     if (name === 'is_app_owner') return route.fulfill({ json: true });
     if (name === 'preferences') return route.fulfill({ json: { display_density: 'comfortable', timezone: 'America/Denver', week_starts_on: 1, duration_unit: 'seconds' } });
     if (name === 'active_history') {
-      const sets = workoutDays.flatMap((day) => day.sets.map((set) => ({ ...set, date: day.date })));
+      const sets: Array<Record<string, string | number>> = workoutDays.flatMap((day) => day.sets.map((set) => ({ ...set, date: day.date })));
       const names = [...new Set(sets.map((set) => String(set.Exercise)))].sort();
       return route.fulfill({ json: { revision_id: revisionId, records: [], food_days: [], imports: [], undo_target_id: null, aliases,
         workout_days: workoutDays.map((day) => ({ date: day.date, source_kind: day.source_kind, sets: day.sets.length, revision_id: revisionId,

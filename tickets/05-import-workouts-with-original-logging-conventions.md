@@ -28,6 +28,6 @@ Verified locally:
 - 5 parser tests (as-logged values with repeats/assistance/base weight/timed/blank; CSV-over-workbook precedence; findings; duplicate CSVs; session grouping without summing durations; duration formatting; superset label detection).
 - 5 database tests (dry run; exact storage and unchanged reimport; precedence across imports; clear and multi-step undo; invalid payloads; aliases and duration-unit owner-only with stranger/anonymous denial; private workout data).
 - 4 UI tests (preview and Training page with sessions and as-logged sets; duration-unit setting; alias only changes display and can be removed; clear and undo of a workout day) plus updated earlier tests; 1 Chromium test at 390px with mocked transport (workout archive upload, Training page, alias), screenshots inspected.
-- Full suite: 71 unit/UI/database tests and 6 browser tests; typecheck and both production builds pass.
+- Full suite: 66 unit/UI/database tests and 6 browser tests; typecheck and both production builds pass.
 
 Not yet verified live: the migration on Supabase, the owner importing the workout CSV on the hosted app, and the one-session duration check against MacroFactor (ticket 14 release gate).
