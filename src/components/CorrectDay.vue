@@ -1,24 +1,37 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { NothingToChangeError, StaleRevisionError, type Gateway, type ImportedHistory } from '../gateway';
-import { dailyDomains, domainLabels, type DailyDomain } from '../import/workbook';
-import { formatCalendarDate, formatValue, newRequestId } from '../import/preview';
+import { NothingToChangeError, StaleRevisionError, type ClearableDomain, type Gateway, type ImportedHistory } from '../gateway';
+import { dailyDomains } from '../import/workbook';
+import { clearableLabels, formatCalendarDate, formatValue, newRequestId } from '../import/preview';
 
 const props = defineProps<{ gateway: Gateway; history: ImportedHistory; reloadHistory: () => Promise<boolean> }>();
 
-const dates = computed(() => [...new Set(props.history.records.map((record) => record.date))].sort().reverse());
+const dates = computed(() => [...new Set([...props.history.records.map((record) => record.date), ...props.history.foodDays.map((day) => day.date)])].sort().reverse());
 const selectedDate = ref('');
-const selectedDomain = ref<DailyDomain | ''>('');
+const selectedDomain = ref<ClearableDomain | ''>('');
 const confirming = ref(false);
 const saving = ref(false);
 const requestId = ref('');
 const problem = ref('');
 const outcome = ref('');
 
-const domainsOnDate = computed(() => dailyDomains.filter((domain) => props.history.records.some((record) => record.date === selectedDate.value && record.domain === domain)));
-const record = computed(() => props.history.records.find((item) => item.date === selectedDate.value && item.domain === selectedDomain.value) ?? null);
+const foodDay = computed(() => props.history.foodDays.find((day) => day.date === selectedDate.value) ?? null);
+const domainsOnDate = computed<ClearableDomain[]>(() => [
+  ...dailyDomains.filter((domain) => props.history.records.some((record) => record.date === selectedDate.value && record.domain === domain)),
+  ...(foodDay.value ? ['food_entries' as const] : []),
+]);
+/** The saved item to clear: a daily record, or the date's food entries summarized as values. */
+const record = computed(() => {
+  if (!selectedDomain.value) return null;
+  if (selectedDomain.value === 'food_entries') {
+    const day = foodDay.value;
+    return day ? { date: day.date, domain: 'food_entries' as ClearableDomain, values: { Entries: day.entries, 'Calories (kcal)': day.calories, 'Protein (g)': day.protein } as Record<string, number | null> } : null;
+  }
+  const found = props.history.records.find((item) => item.date === selectedDate.value && item.domain === selectedDomain.value);
+  return found ? { date: found.date, domain: found.domain as ClearableDomain, values: found.values } : null;
+});
 const recordedValues = computed(() => Object.entries(record.value?.values ?? {}).filter(([, value]) => value !== null));
-const blankCount = computed(() => Object.values(record.value?.values ?? {}).filter((value) => value === null).length);
+const blankCount = computed(() => (selectedDomain.value === 'food_entries' ? 0 : Object.values(record.value?.values ?? {}).filter((value) => value === null).length));
 
 watch(selectedDate, () => { selectedDomain.value = ''; reset(); });
 watch(selectedDomain, reset);
@@ -38,7 +51,7 @@ async function clear() {
   if (!record.value || saving.value || !selectedDomain.value) return;
   saving.value = true;
   problem.value = '';
-  const label = `${domainLabels[selectedDomain.value]} on ${formatCalendarDate(selectedDate.value)}`;
+  const label = `${clearableLabels[selectedDomain.value]} on ${formatCalendarDate(selectedDate.value)}`;
   try {
     await props.gateway.clearDay({ requestId: requestId.value, expectedRevisionId: props.history.revisionId, date: selectedDate.value, domain: selectedDomain.value });
     confirming.value = false;
@@ -75,7 +88,7 @@ async function clear() {
       <div><label class="field-label" for="correct-domain">Data</label>
         <select id="correct-domain" v-model="selectedDomain" :disabled="!selectedDate || saving">
           <option value="" disabled>Choose what to clear</option>
-          <option v-for="domain in domainsOnDate" :key="domain" :value="domain">{{ domainLabels[domain] }}</option>
+          <option v-for="domain in domainsOnDate" :key="domain" :value="domain">{{ clearableLabels[domain] }}</option>
         </select></div>
     </div>
     <div v-if="record" class="correct-current">
@@ -85,7 +98,8 @@ async function clear() {
       <div v-if="!confirming" class="form-footer"><span class="muted">You'll confirm on the next step.</span>
         <button class="primary-button" type="button" @click="review">Review clearing</button></div>
       <div v-else class="confirm-box" role="group" aria-label="Confirm clearing">
-        <p>Remove <strong>{{ domainLabels[record.domain] }}</strong> for <strong>{{ formatCalendarDate(record.date) }}</strong> ({{ recordedValues.length }} recorded {{ recordedValues.length === 1 ? 'value' : 'values' }})? The day's other data stays. This creates a new version you can undo.</p>
+        <p v-if="record.domain === 'food_entries'">Remove all <strong>{{ foodDay?.entries }} food entries</strong> for <strong>{{ formatCalendarDate(record.date) }}</strong>? Daily intake for that date falls back to the workbook total, if any. The day's other data stays. This creates a new version you can undo.</p>
+        <p v-else>Remove <strong>{{ clearableLabels[record.domain] }}</strong> for <strong>{{ formatCalendarDate(record.date) }}</strong> ({{ recordedValues.length }} recorded {{ recordedValues.length === 1 ? 'value' : 'values' }})? The day's other data stays. This creates a new version you can undo.</p>
         <div class="form-footer"><button class="text-button" type="button" @click="reset" :disabled="saving">Cancel</button>
           <button class="primary-button" type="button" @click="clear" :disabled="saving">{{ saving ? 'Clearing...' : 'Clear this data' }}</button></div>
       </div>

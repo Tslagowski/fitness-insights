@@ -34,7 +34,8 @@ const firstWorkbook = syntheticWorkbook([dailyRow('2026-09-01'), dailyRow('2026-
 
 async function seeded() {
   const gateway = new MemoryGateway();
-  await gateway.commitImport({ requestId: 'seed', expectedRevisionId: null, file: { name: 'first.xlsx', sha256: 'a'.repeat(64), byteSize: 1, mediaType: 'x', bytes: new Uint8Array() }, records: parseWorkbook(firstWorkbook).records });
+  await gateway.commitSources({ requestId: 'seed', expectedRevisionId: null, acceptReconciliation: false, food: [], daily: parseWorkbook(firstWorkbook).records,
+    sources: [{ name: 'first.xlsx', kind: 'workbook', sha256: 'a'.repeat(64), byteSize: 1, mediaType: 'x', bytes: new Uint8Array() }] });
   return gateway;
 }
 
@@ -44,11 +45,11 @@ test('an overlapping workbook previews its single correction and says which save
   await chooseFile(app, syntheticWorkbook([dailyRow('2026-09-02', { 'Weight (lb)': 297.8 }), dailyRow('2026-09-03')]), 'newer.xlsx');
   const summary = app.get('[aria-label="Proposed changes"]').text();
   expect(summary).toMatch(/6\s*new daily records/);
-  expect(summary).toMatch(/1\s*corrections to saved records/);
+  expect(summary).toMatch(/1\s*correction to saved daily records/);
   expect(summary).toMatch(/5\s*already saved/);
   expect(app.text()).toContain('Sep 2, 2026 · Scale weight');
   expect(app.text()).toContain('Weight (lb): 181 → now Weight (lb): 297.8');
-  expect(app.text()).toContain('1 saved date is not in this file and will stay exactly as it is.');
+  expect(app.text()).toContain('1 saved date is not in these files and will stay exactly as it is.');
   await click(app, 'Confirm import');
   expect(app.text()).toContain('Imported newer.xlsx: 6 added, 1 corrected, 5 unchanged');
 });

@@ -4,7 +4,7 @@ import { parseWorkbook, WorkbookImportError } from '../src/import/workbook';
 import { serialToCalendarDate } from '../src/import/xlsx';
 import { buildWorkbook, dailyHeaders, dailyRow, syntheticWorkbook } from './fixtures/workbook-builder';
 
-const foodSheet = { name: 'Food Log', rows: [['Date', 'Time', 'Food Name', 'Serving Size', 'Calories (kcal)'], ['2026-09-01', '8:00 AM', 'Oats', 'cup', 300]] };
+const foodSheet = { name: 'Food Log', rows: [['Date', 'Time', 'Food Name', 'Serving Size', 'Serving Qty', 'Serving Weight (g)', 'Calories (kcal)', 'Fat (g)', 'Carbs (g)', 'Protein (g)'], ['2026-09-01', '8:00 AM', 'Oats', 'cup', 1, 80, 300, 5, 54, 10]] };
 const workoutSheet = { name: 'Workout Log', rows: [['Date', 'Workout', 'Exercise', 'Set Type', 'Weight (lb)', 'Reps'], ['2026-09-01', 'Push', 'Bench Press', 'Standard Set', 135, 8]] };
 
 describe('workbook detection', () => {
@@ -20,7 +20,7 @@ describe('workbook detection', () => {
     const result = parseWorkbook(bytes);
     expect(result.dailySheet).toBe('Renamed Summary');
     expect(result.sheets.map((sheet) => [sheet.name, sheet.disposition])).toEqual([
-      ['Renamed Summary', 'imported'], ['Food Log', 'later-food'], ['Workout Log', 'later-workouts'],
+      ['Renamed Summary', 'imported'], ['Food Log', 'food-detail'], ['Workout Log', 'later-workouts'],
       ['Muscle Groups - Sets', 'archived'], ['Active Program', 'archived'], ['Notes', 'unrecognized'],
     ]);
   });

@@ -159,6 +159,21 @@ main:focus { outline: 0; }
 .change-log li { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-top: 1px solid #eef1e9; }
 .change-log span { color: #62755b; }
 .change-log li.undone strong { color: #7d8a80; text-decoration: line-through; text-decoration-color: #b9c3b4; }
+.preview-files { margin: 0 0 16px; }
+.check-label { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; margin-top: 12px; min-height: 44px; cursor: pointer; }
+.check-label input { width: 20px; height: 20px; accent-color: #233e32; }
+.daily-table td.source-cell { text-align: left; color: #62755b; font-size: 10px; }
+.daily-table tr.planned td, .daily-table tr.planned th { color: #8a7a62; }
+.food-days { list-style: none; padding: 0; margin: 14px 0 10px; display: flex; flex-direction: column; }
+.food-days > li { border-top: 1px solid #eef1e9; }
+.food-days > li.planned .food-day-totals { color: #8a7a62; }
+.food-day-toggle { width: 100%; background: transparent; border: 0; text-align: left; padding: 12px 4px; display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 2fr); gap: 2px 16px; align-items: baseline; color: inherit; min-height: 48px; }
+.food-day-toggle:hover { background: #f6f8f1; }
+.food-day-toggle .muted { grid-column: 2; }
+.food-day-date { font-size: 12px; font-weight: 600; }
+.food-day-totals { font-size: 12px; font-variant-numeric: tabular-nums; }
+.food-entries { padding: 0 4px 14px; }
+.daily-table .food-name { text-align: left; white-space: normal; min-width: 160px; }
 @media (min-width: 1600px) {
   main { padding-top: 58px; }
   .welcome-content { padding: 55px; }
@@ -215,6 +230,8 @@ main:focus { outline: 0; }
   .outline-pill { white-space: normal; }
   .change-summary { grid-template-columns: 1fr; }
   .correct-fields { grid-template-columns: 1fr; }
+  .food-day-toggle { grid-template-columns: 1fr; }
+  .food-day-toggle .muted { grid-column: 1; }
   .undo-box { flex-direction: column; align-items: stretch; }
   .change-summary div { flex-direction: row; align-items: baseline; gap: 10px; padding: 10px 14px; }
   .change-count { font-size: 20px; }

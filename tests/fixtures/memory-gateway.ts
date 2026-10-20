@@ -1,17 +1,24 @@
 import {
-  defaultPreferences, NothingToChangeError, StaleRevisionError, type ChangeKind, type ChangeResult, type ClearDayRequest,
-  type DisplayDensity, type Gateway, type Identity, type ImportCommitRequest, type ImportedHistory, type ImportSummary, type UndoPreview,
+  defaultPreferences, NothingToChangeError, ReconciliationRequiredError, StaleRevisionError, type CalorieConflict, type ChangeKind,
+  type ChangeResult, type ClearableDomain, type ClearDayRequest, type DisplayDensity, type FoodDaySummary, type Gateway, type Identity,
+  type ImportedHistory, type ImportSummary, type SavedFoodDay, type SourcesCommitRequest, type SourcesPreview, type SourcesRequest,
+  type SourcesResult, type UndoPreview,
 } from '../../src/gateway';
 import type { DailyDomain, DailyValues } from '../../src/import/workbook';
+import { calorieTolerance, foodDayTotals, type FoodEntry, type FoodSource } from '../../src/import/food';
 import { sameValues } from '../../src/import/preview';
 
-interface Row { date: string; domain: DailyDomain; values: DailyValues; sourceFileId: string; introduced: number; retired: number | null }
+interface Span { introduced: number; retired: number | null }
+interface Row extends Span { date: string; domain: DailyDomain; values: DailyValues; sourceFileId: string }
+interface FoodRow extends Span { date: string; source: FoodSource; entries: FoodEntry[]; sourceFileId: string }
 interface Event extends ImportSummary { requestId: string; baseRevisionId: number | null }
 
+const sameEntries = (left: FoodEntry[], right: FoodEntry[]) => JSON.stringify(left) === JSON.stringify(right);
+
 /**
- * In-memory stand-in for the Supabase gateway that follows the same revision rules as the SQL
- * functions (append-only rows, linear revisions, stale/replay checks, undo by snapshot). The SQL
- * itself is tested against PostgreSQL; this lets UI tests exercise realistic multi-device flows.
+ * In-memory stand-in for the Supabase gateway that follows the same rules as the SQL functions:
+ * append-only rows with linear revisions, stale and replay checks, CSV-over-workbook food precedence,
+ * reconciliation acceptance, and undo by snapshot. The SQL itself is tested against PostgreSQL.
  */
 export class MemoryGateway implements Gateway {
   identity: Identity | null = { id: 'owner', name: 'Trevis' };
@@ -22,6 +29,7 @@ export class MemoryGateway implements Gateway {
   listener = () => {};
   revisionId: number | null = null;
   rows: Row[] = [];
+  food: FoodRow[] = [];
   events: Event[] = [];
   calls: Array<{ method: string; requestId?: string; expectedRevisionId: number | null }> = [];
   private nextRevision = 1;
@@ -40,45 +48,69 @@ export class MemoryGateway implements Gateway {
   onIdentityChange(listener: () => void) { this.listener = listener; return () => { this.listener = () => {}; }; }
 
   get active() { return this.rows.filter((row) => row.retired === null); }
+  get activeFood() { return this.food.filter((row) => row.retired === null); }
 
   async loadHistory(): Promise<ImportedHistory> {
     return {
       revisionId: this.revisionId,
       records: this.active.map((row) => ({ date: row.date, domain: row.domain, values: { ...row.values }, sourceFileId: row.sourceFileId, revisionId: row.introduced })),
+      foodDays: this.activeFood.sort((left, right) => left.date.localeCompare(right.date)).map((row): FoodDaySummary => {
+        const totals = foodDayTotals(row.entries);
+        return { date: row.date, source: row.source, entries: row.entries.length, calories: totals.calories, protein: totals.protein, fat: totals.fat, carbs: totals.carbs, missingCalories: totals.entriesMissingCalories, revisionId: row.introduced };
+      }),
       imports: [...this.events].reverse().map(({ requestId: _requestId, baseRevisionId: _base, ...summary }) => ({ ...summary, undone: this.events.some((event) => event.undoesId === summary.id) })),
       undoTargetId: this.undoTarget()?.id ?? null,
     };
   }
 
-  async commitImport(request: ImportCommitRequest) {
-    const replay = this.begin('commitImport', request.requestId, request.expectedRevisionId);
-    if (replay) return { ...replay, unchanged: 0 };
-    let added = 0; let changed = 0; let unchanged = 0;
-    const plan: Array<{ record: (typeof request.records)[number]; existing?: Row }> = [];
-    for (const record of request.records) {
-      const existing = this.active.find((row) => row.date === record.date && row.domain === record.domain);
-      if (!existing) { added += 1; plan.push({ record }); }
-      else if (sameValues(existing.values, record.values)) unchanged += 1;
-      else { changed += 1; plan.push({ record, existing }); }
+  async loadFoodDay(date: string): Promise<SavedFoodDay | null> {
+    const row = this.activeFood.find((item) => item.date === date);
+    return row ? { date: row.date, source: row.source, entries: row.entries.map((entry) => ({ ...entry })), revisionId: row.introduced } : null;
+  }
+
+  async previewSources(request: SourcesRequest): Promise<SourcesPreview> {
+    this.calls.push({ method: 'previewSources', expectedRevisionId: request.expectedRevisionId });
+    if (request.expectedRevisionId !== this.revisionId) throw new StaleRevisionError('stale');
+    const plan = this.planSources(request);
+    return { revisionId: this.revisionId, ...plan.counts, keptDates: plan.food.filter((item) => item.status === 'kept').map((item) => item.day.date),
+      changedFoodDates: plan.food.filter((item) => item.status === 'changed').map((item) => item.day.date), conflicts: plan.conflicts };
+  }
+
+  async commitSources(request: SourcesCommitRequest): Promise<SourcesResult> {
+    const replay = this.begin('commitSources', request.requestId, request.expectedRevisionId);
+    if (replay) return { ...replay, unchanged: 0, foodAdded: 0, foodChanged: 0, foodUnchanged: 0, foodKept: 0, conflicts: [] };
+    const plan = this.planSources(request);
+    if (plan.conflicts.length && !request.acceptReconciliation) throw new ReconciliationRequiredError('Reconciliation required');
+    const applied = [...plan.daily, ...plan.food].filter((item) => item.status === 'added' || item.status === 'changed');
+    const revision = applied.length ? this.newRevision() : null;
+    const sourceId = (kind: string) => request.sources.find((source) => source.kind === kind)?.sha256 ?? kind;
+    for (const item of plan.daily) {
+      if (item.status !== 'added' && item.status !== 'changed') continue;
+      if (item.existing) item.existing.retired = revision;
+      this.rows.push({ date: item.record.date, domain: item.record.domain, values: { ...item.record.values }, sourceFileId: sourceId('workbook'), introduced: revision!, retired: null });
     }
-    const revision = plan.length ? this.newRevision() : null;
-    for (const { record, existing } of plan) {
-      if (existing) existing.retired = revision;
-      this.rows.push({ date: record.date, domain: record.domain, values: { ...record.values }, sourceFileId: request.file.sha256, introduced: revision!, retired: null });
+    for (const item of plan.food) {
+      if (item.status !== 'added' && item.status !== 'changed') continue;
+      if (item.existing) item.existing.retired = revision;
+      this.food.push({ date: item.day.date, source: item.day.source, entries: item.day.entries.map((entry) => ({ ...entry })), sourceFileId: sourceId(item.day.source === 'food_csv' ? 'food_csv' : 'workbook'), introduced: revision!, retired: null });
     }
-    const dates = request.records.map((record) => record.date).sort();
-    this.record(request.requestId, 'workbook', revision, { added, changed, unchanged, removed: 0, firstDate: dates[0], lastDate: dates.at(-1)!, fileName: request.file.name, byteSize: request.file.byteSize });
-    return { outcome: revision ? 'changed' as const : 'unchanged' as const, replayed: false, revisionId: this.revisionId, added, changed, unchanged };
+    const dates = [...request.daily.map((record) => record.date), ...request.food.map((day) => day.date)].sort();
+    const { added, changed, unchanged, foodAdded, foodChanged, foodUnchanged, foodKept } = plan.counts;
+    this.record(request.requestId, 'import', revision, { added, changed, unchanged, removed: 0, foodAdded, foodChanged, foodUnchanged, foodKept,
+      firstDate: dates[0] ?? null, lastDate: dates.at(-1) ?? null, fileNames: request.sources.map((source) => source.name), reconciliation: plan.conflicts });
+    return { outcome: revision ? 'changed' : 'unchanged', replayed: false, revisionId: this.revisionId, ...plan.counts, conflicts: plan.conflicts };
   }
 
   async clearDay(request: ClearDayRequest): Promise<ChangeResult> {
     const replay = this.begin('clearDay', request.requestId, request.expectedRevisionId);
     if (replay) return replay;
-    const existing = this.active.find((row) => row.date === request.date && row.domain === request.domain);
+    const existing: Span | undefined = request.domain === 'food_entries'
+      ? this.activeFood.find((row) => row.date === request.date)
+      : this.active.find((row) => row.date === request.date && row.domain === request.domain);
     if (!existing) throw new NothingToChangeError('There is no saved record for that date and domain.');
     const revision = this.newRevision();
     existing.retired = revision;
-    this.record(request.requestId, 'clear', revision, { added: 0, changed: 0, unchanged: 0, removed: 1, firstDate: request.date, lastDate: request.date, clearedDate: request.date, clearedDomain: request.domain });
+    this.record(request.requestId, 'clear', revision, { added: 0, changed: 0, unchanged: 0, removed: 1, firstDate: request.date, lastDate: request.date, clearedDate: request.date, clearedDomain: request.domain as ClearableDomain });
     return { outcome: 'changed', replayed: false, revisionId: revision, added: 0, changed: 0, removed: 1 };
   }
 
@@ -97,7 +129,8 @@ export class MemoryGateway implements Gateway {
     const revision = plan.length ? this.newRevision() : null;
     for (const item of plan) {
       if (item.current) item.current.retired = revision;
-      if (item.restore) this.rows.push({ ...item.restore, values: { ...item.restore.values }, introduced: revision!, retired: null });
+      if (item.restoreRow) this.rows.push({ ...item.restoreRow, values: { ...item.restoreRow.values }, introduced: revision!, retired: null });
+      if (item.restoreFood) this.food.push({ ...item.restoreFood, entries: item.restoreFood.entries.map((entry) => ({ ...entry })), introduced: revision!, retired: null });
     }
     const counts = this.count(plan);
     const dates = plan.map((item) => item.date).sort();
@@ -105,9 +138,43 @@ export class MemoryGateway implements Gateway {
     return { outcome: revision ? 'changed' : 'unchanged', replayed: false, revisionId: this.revisionId, ...counts };
   }
 
-  /** Simulates another device changing the shared history. */
+  /** Simulates another device changing the shared history with a workbook-sourced daily import. */
   async otherDeviceImport(records: Array<{ date: string; domain: DailyDomain; values: DailyValues }>) {
-    return this.commitImport({ requestId: `other-${this.clock}`, expectedRevisionId: this.revisionId, file: { name: 'other-device.xlsx', sha256: 'f'.repeat(64), byteSize: 1, mediaType: 'x', bytes: new Uint8Array() }, records });
+    return this.commitSources({ requestId: `other-${this.clock}`, expectedRevisionId: this.revisionId, acceptReconciliation: true,
+      sources: [{ name: 'other-device.xlsx', kind: 'workbook', sha256: 'f'.repeat(64), byteSize: 1, mediaType: 'x', bytes: new Uint8Array() }], daily: records, food: [] });
+  }
+
+  private planSources(request: SourcesRequest) {
+    const daily = request.daily.map((record) => {
+      const existing = this.active.find((row) => row.date === record.date && row.domain === record.domain);
+      const status = !existing ? 'added' : sameValues(existing.values, record.values) ? 'unchanged' : 'changed';
+      return { record, existing, status };
+    });
+    const food = request.food.map((day) => {
+      const existing = this.activeFood.find((row) => row.date === day.date);
+      const status = !existing ? 'added'
+        : existing.source === 'food_csv' && day.source === 'workbook_food_log' ? 'kept'
+          : existing.source === day.source && sameEntries(existing.entries, day.entries) ? 'unchanged' : 'changed';
+      return { day, existing, status };
+    });
+    const count = (items: Array<{ status: string }>, status: string) => items.filter((item) => item.status === status).length;
+    const counts = { added: count(daily, 'added'), changed: count(daily, 'changed'), unchanged: count(daily, 'unchanged'),
+      foodAdded: count(food, 'added'), foodChanged: count(food, 'changed'), foodUnchanged: count(food, 'unchanged'), foodKept: count(food, 'kept') };
+    const touched = new Set([...food.filter((item) => item.status === 'added' || item.status === 'changed').map((item) => item.day.date),
+      ...daily.filter((item) => item.record.domain === 'nutrition_totals' && (item.status === 'added' || item.status === 'changed')).map((item) => item.record.date)]);
+    const conflicts: CalorieConflict[] = [];
+    for (const date of [...touched].sort()) {
+      const incomingFood = food.find((item) => item.day.date === date && (item.status === 'added' || item.status === 'changed'));
+      const entries = incomingFood?.day.entries ?? this.activeFood.find((row) => row.date === date)?.entries;
+      const totals = daily.find((item) => item.record.date === date && item.record.domain === 'nutrition_totals')?.record.values
+        ?? this.active.find((row) => row.date === date && row.domain === 'nutrition_totals')?.values;
+      const detail = entries ? foodDayTotals(entries).calories : null;
+      const workbook = totals?.['Calories (kcal)'] ?? null;
+      if (detail !== null && workbook !== null && Math.abs(detail - workbook) > calorieTolerance(workbook)) {
+        conflicts.push({ date, detailCalories: detail, workbookCalories: workbook, difference: detail - workbook });
+      }
+    }
+    return { daily, food, counts, conflicts };
   }
 
   private begin(method: string, requestId: string, expectedRevisionId: number | null): ChangeResult | null {
@@ -127,15 +194,22 @@ export class MemoryGateway implements Gateway {
     const target = this.undoTarget();
     if (!target) throw new NothingToChangeError('There is no import or correction to undo.');
     const base = target.baseRevisionId;
-    const snapshot = base === null ? [] : this.rows.filter((row) => row.introduced <= base && (row.retired === null || row.retired > base));
-    const keys = new Set([...snapshot, ...this.active].map((row) => `${row.date}|${row.domain}`));
-    const plan: Array<{ date: string; action: 'added' | 'changed' | 'removed'; current?: Row; restore?: Row }> = [];
-    for (const key of keys) {
+    const at = <T extends Span>(rows: T[]) => (base === null ? [] : rows.filter((row) => row.introduced <= base && (row.retired === null || row.retired > base)));
+    const plan: Array<{ date: string; action: 'added' | 'changed' | 'removed'; current?: Span; restoreRow?: Row; restoreFood?: FoodRow }> = [];
+    const snapshot = at(this.rows);
+    for (const key of new Set([...snapshot, ...this.active].map((row) => `${row.date}|${row.domain}`))) {
       const [date, domain] = key.split('|');
-      const restore = snapshot.find((row) => row.date === date && row.domain === domain);
+      const restoreRow = snapshot.find((row) => row.date === date && row.domain === domain);
       const current = this.active.find((row) => row.date === date && row.domain === domain);
-      if (restore && current && sameValues(restore.values, current.values)) continue;
-      plan.push({ date, action: !current ? 'added' : !restore ? 'removed' : 'changed', current, restore });
+      if (restoreRow && current && sameValues(restoreRow.values, current.values)) continue;
+      plan.push({ date, action: !current ? 'added' : !restoreRow ? 'removed' : 'changed', current, restoreRow });
+    }
+    const foodSnapshot = at(this.food);
+    for (const date of new Set([...foodSnapshot, ...this.activeFood].map((row) => row.date))) {
+      const restoreFood = foodSnapshot.find((row) => row.date === date);
+      const current = this.activeFood.find((row) => row.date === date);
+      if (restoreFood && current && restoreFood.source === current.source && sameEntries(restoreFood.entries, current.entries)) continue;
+      plan.push({ date, action: !current ? 'added' : !restoreFood ? 'removed' : 'changed', current, restoreFood });
     }
     return { target, plan };
   }
@@ -151,7 +225,7 @@ export class MemoryGateway implements Gateway {
     this.events.push({
       id: `change-${this.events.length + 1}`, requestId, kind, baseRevisionId: this.revisionId, outcome: revision ? 'changed' : 'unchanged',
       revisionId: revision, committedAt: new Date(this.clock).toISOString(), clearedDate: null, clearedDomain: null, undoesId: null, undone: false,
-      firstDate: null, lastDate: null, fileName: null, byteSize: null, ...details,
+      firstDate: null, lastDate: null, fileNames: [], reconciliation: [], foodAdded: 0, foodChanged: 0, foodUnchanged: 0, foodKept: 0, ...details,
     });
     if (revision) this.revisionId = revision;
   }

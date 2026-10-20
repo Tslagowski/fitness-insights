@@ -1,9 +1,11 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  defaultPreferences, NothingToChangeError, StaleRevisionError, type ChangeKind, type ChangeResult, type DisplayDensity,
-  type Gateway, type ImportCommitRequest, type ImportCommitResult, type ImportedHistory, type Preferences, type UndoPreview,
+  defaultPreferences, NothingToChangeError, ReconciliationRequiredError, StaleRevisionError, type CalorieConflict, type ChangeKind,
+  type ChangeResult, type ClearableDomain, type DisplayDensity, type FoodCounts, type Gateway, type ImportedHistory, type Preferences,
+  type SavedFoodDay, type SourceFile, type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview,
 } from './gateway';
 import type { DailyDomain, DailyValues } from './import/workbook';
+import type { FoodEntry, FoodSource } from './import/food';
 
 const archiveBucket = 'source-archives';
 
@@ -64,19 +66,38 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
       if (!data) throw new Error('Saved history is unavailable for this account.');
       return decodeHistory(data);
     },
-    async commitImport(request: ImportCommitRequest): Promise<ImportCommitResult> {
+    async loadFoodDay(date): Promise<SavedFoodDay | null> {
+      const { data, error } = await client.rpc('food_day_entries', { p_date: date });
+      if (error) throw translateError(error);
+      if (!data) return null;
+      const day = data as Record<string, unknown>;
+      return { date: String(day.date), source: day.source_kind as FoodSource, entries: day.entries as FoodEntry[], revisionId: Number(day.revision_id) };
+    },
+    async previewSources(request): Promise<SourcesPreview> {
+      const { data, error } = await client.rpc('commit_sources', { ...sourcesPayload(request), p_request_id: null, p_accept_reconciliation: false, p_dry_run: true });
+      if (error) throw translateError(error);
+      const preview = data as Record<string, unknown>;
+      return {
+        revisionId: typeof preview.revision_id === 'number' ? preview.revision_id : null,
+        added: Number(preview.added), changed: Number(preview.changed), unchanged: Number(preview.unchanged),
+        ...decodeFoodCounts(preview),
+        keptDates: (preview.kept_dates as string[]) ?? [],
+        changedFoodDates: (preview.changed_food_dates as string[]) ?? [],
+        conflicts: decodeConflicts(preview.conflicts),
+      };
+    },
+    async commitSources(request): Promise<SourcesResult> {
       // Content-addressed and immutable: re-uploading the same file is harmless.
-      const { error: uploadError } = await client.storage.from(archiveBucket).upload(
-        `workbooks/${request.file.sha256}.xlsx`,
-        new Blob([request.file.bytes as BlobPart], { type: request.file.mediaType }),
-        { contentType: request.file.mediaType, upsert: false },
-      );
-      if (uploadError && !isAlreadyStored(uploadError)) throw uploadError;
-      const { data, error } = await client.rpc('commit_import', {
-        p_request_id: request.requestId,
-        p_expected_revision_id: request.expectedRevisionId,
-        p_source: { sha256: request.file.sha256, file_name: request.file.name, byte_size: request.file.byteSize, media_type: request.file.mediaType },
-        p_records: request.records.map((record) => ({ date: record.date, domain: record.domain, fields: record.values })),
+      for (const source of request.sources) {
+        const { error: uploadError } = await client.storage.from(archiveBucket).upload(
+          archivePath(source),
+          new Blob([source.bytes as BlobPart], { type: source.mediaType }),
+          { contentType: source.mediaType, upsert: false },
+        );
+        if (uploadError && !isAlreadyStored(uploadError)) throw uploadError;
+      }
+      const { data, error } = await client.rpc('commit_sources', {
+        ...sourcesPayload(request), p_request_id: request.requestId, p_accept_reconciliation: request.acceptReconciliation, p_dry_run: false,
       });
       if (error) throw translateError(error);
       const result = data as Record<string, unknown>;
@@ -85,6 +106,8 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
         replayed: result.replayed === true,
         revisionId: typeof result.revision_id === 'number' ? result.revision_id : null,
         added: Number(result.added), changed: Number(result.changed), unchanged: Number(result.unchanged),
+        ...decodeFoodCounts(result),
+        conflicts: decodeConflicts(result.conflicts),
       };
     },
     async clearDay(request) {
@@ -129,8 +152,32 @@ function isAlreadyStored(error: { message?: string; status?: number; statusCode?
   return error.status === 409 || error.statusCode === '409' || /already exists/i.test(error.message ?? '');
 }
 
+function archivePath(source: SourceFile): string {
+  return source.kind === 'workbook' ? `workbooks/${source.sha256}.xlsx` : `food-csv/${source.sha256}.csv`;
+}
+
+function sourcesPayload(request: SourcesRequest) {
+  return {
+    p_expected_revision_id: request.expectedRevisionId,
+    p_sources: request.sources.map((source) => ({ kind: source.kind, sha256: source.sha256, file_name: source.name, byte_size: source.byteSize, media_type: source.mediaType })),
+    p_daily: request.daily.map((record) => ({ date: record.date, domain: record.domain, fields: record.values })),
+    p_food: request.food.map((day) => ({ date: day.date, source_kind: day.source, entries: day.entries })),
+  };
+}
+
+function decodeFoodCounts(value: Record<string, unknown>): FoodCounts {
+  return { foodAdded: Number(value.food_added ?? 0), foodChanged: Number(value.food_changed ?? 0), foodUnchanged: Number(value.food_unchanged ?? 0), foodKept: Number(value.food_kept ?? 0) };
+}
+
+function decodeConflicts(value: unknown): CalorieConflict[] {
+  return ((value as Array<Record<string, unknown>> | null) ?? []).map((item) => ({
+    date: String(item.date), detailCalories: Number(item.detail_calories), workbookCalories: Number(item.workbook_calories), difference: Number(item.difference),
+  }));
+}
+
 function translateError(error: { code?: string; message: string }): Error {
   if (error.code === 'FI409') return new StaleRevisionError(error.message);
+  if (error.code === 'FI422') return new ReconciliationRequiredError(error.message);
   if (error.code === 'P0002') return new NothingToChangeError(error.message);
   return Object.assign(new Error(error.message), { code: error.code });
 }
@@ -146,7 +193,8 @@ function decodeChange(value: unknown): ChangeResult {
 }
 
 function decodeHistory(value: unknown): ImportedHistory {
-  const history = value as { revision_id: number | null; records: Array<Record<string, unknown>>; imports: Array<Record<string, unknown>>; undo_target_id?: string | null };
+  const history = value as { revision_id: number | null; records: Array<Record<string, unknown>>; food_days?: Array<Record<string, unknown>>; imports: Array<Record<string, unknown>>; undo_target_id?: string | null };
+  const numberOrNull = (item: unknown) => (item === null || item === undefined ? null : Number(item));
   return {
     revisionId: history.revision_id ?? null,
     undoTargetId: history.undo_target_id ?? null,
@@ -157,12 +205,17 @@ function decodeHistory(value: unknown): ImportedHistory {
       sourceFileId: String(record.source_file_id),
       revisionId: Number(record.revision_id),
     })),
+    foodDays: (history.food_days ?? []).map((day) => ({
+      date: String(day.date), source: day.source_kind as FoodSource, entries: Number(day.entries),
+      calories: numberOrNull(day.calories), protein: numberOrNull(day.protein), fat: numberOrNull(day.fat), carbs: numberOrNull(day.carbs),
+      missingCalories: Number(day.missing_calories ?? 0), revisionId: Number(day.revision_id),
+    })),
     imports: history.imports.map((item) => ({
       id: String(item.id),
       kind: (item.kind as ChangeKind | undefined) ?? 'workbook',
       removed: Number(item.removed ?? 0),
       clearedDate: (item.cleared_date as string | null) ?? null,
-      clearedDomain: (item.cleared_domain as DailyDomain | null) ?? null,
+      clearedDomain: (item.cleared_domain as ClearableDomain | null) ?? null,
       undoesId: (item.undoes_batch_id as string | null) ?? null,
       undone: item.undone === true,
       committedAt: String(item.committed_at),
@@ -171,8 +224,9 @@ function decodeHistory(value: unknown): ImportedHistory {
       added: Number(item.added), changed: Number(item.changed), unchanged: Number(item.unchanged),
       firstDate: (item.first_date as string | null) ?? null,
       lastDate: (item.last_date as string | null) ?? null,
-      fileName: (item.file_name as string | null) ?? null,
-      byteSize: typeof item.byte_size === 'number' ? item.byte_size : null,
+      fileNames: (item.file_names as string[] | undefined) ?? (item.file_name ? [String(item.file_name)] : []),
+      ...decodeFoodCounts(item),
+      reconciliation: decodeConflicts(item.reconciliation),
     })),
   };
 }

@@ -57,11 +57,11 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 
 - `src/App.vue`: account lifecycle, navigation, settings, empty states.
 - `src/supabase-gateway.ts`: OAuth, preference, archive upload, and import transport.
-- `src/import/`: workbook reading (`xlsx.ts`), MacroFactor schema detection and daily records (`workbook.ts`), and preview comparison (`preview.ts`).
-- `src/components/`: the import panel, daily history table, Correct a day panel, and change history with Undo.
+- `src/import/`: workbook reading (`xlsx.ts`), CSV reading (`csv.ts`), MacroFactor daily records (`workbook.ts`), food entries (`food.ts`), multi-file import plans (`sources.ts`), and preview helpers (`preview.ts`).
+- `src/components/`: the import panel, daily history table, food log, Correct a day panel, and change history with Undo.
 - `supabase/migrations`: owner allowlist, row-level access rules, revisioned daily history with the atomic `commit_import` function, and the private source archive bucket.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is in progress.
+- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is implemented and awaiting live verification.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.
@@ -143,4 +143,14 @@ Every shared change is append-only: an import, a cleared day, or an undo creates
 - **Undo** reverts the latest import or correction that has not been undone, via `undo_last_change`, restoring exactly the records that were active before it. A dry run previews what will be restored, reverted, or removed. Repeating Undo steps further back.
 - **Change history** lists imports, clears, and undos in plain language and marks undone changes.
 - Clear and undo use the same stale-preview check and retry-safe request ids as imports.
+
+## Food detail (ticket 04)
+
+Choose the workbook, the food CSV, or both in one import. Files are recognized by content and headers. Each date's food entries are saved as one food day, exactly as exported: source order, original column labels and units, and legitimately identical rows; a blank nutrient is absent (not recorded), never zero.
+
+- **Precedence:** the food CSV is authoritative for any date it covers; the workbook's Food Log fills dates without CSV detail. A later workbook-only import never replaces saved CSV detail (the preview reports those dates as kept). A newer import replaces a date's food entries as a whole; dates it does not contain are untouched, and food-only imports never touch weight, expenditure, targets, or steps.
+- **Daily intake** is the sum of the date's food entries when detail exists, otherwise the workbook daily total, always labeled by source. The two are never added together; workbook totals stay saved as reconciliation evidence.
+- **Reconciliation:** on dates an import touches, a difference between the detail calorie sum and the workbook total above max(5 kcal, 1%) is listed in the preview. `commit_sources` refuses the import (`FI422`) until the owner accepts the food detail as the source; accepted differences are stored with the change.
+- **Planned entries:** food dated after today (America/Denver) is saved and labeled Planned, not treated as eaten. Completed-day eligibility arrives in ticket 06.
+- `commit_sources` handles one workbook and/or one food CSV atomically with the same stale-preview check and retry-safe request id as before, plus a dry run used by the preview. Raw CSVs are archived privately under `food-csv/`. Clearing (`food_entries`) and Undo cover food days. Nutrition & Weight shows intake with its source and a food log whose entries load per day.
 

@@ -1,4 +1,4 @@
-import type { ImportedHistory, ImportSummary } from '../gateway';
+import type { ClearableDomain, FoodDaySummary, ImportedHistory, ImportSummary } from '../gateway';
 import { dailyDomains, domainLabels, type DailyDomain, type DailyRecord, type DailyValues } from './workbook';
 
 export interface RecordChange {
@@ -91,24 +91,56 @@ export function formatCalendarDate(date: string, options: { weekday?: boolean } 
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
+/** "1 day", "2 days": count plus the right noun form. */
+export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
+  return `${count.toLocaleString('en-US')} ${count === 1 ? singular : pluralForm}`;
+}
+
 export function formatValue(value: number | null | undefined, maximumFractionDigits = 2): string {
   if (value === null || value === undefined) return '—';
   return value.toLocaleString('en-US', { maximumFractionDigits });
 }
 
+export const clearableLabels: Record<ClearableDomain, string> = { ...domainLabels, food_entries: 'Food entries' };
+
 /** One-line, plain-language description of a change-log entry. */
 export function describeChange(change: ImportSummary, all: ImportSummary[]): string {
   if (change.kind === 'clear') {
-    return `Cleared ${change.clearedDomain ? domainLabels[change.clearedDomain] : 'a record'} on ${change.clearedDate ? formatCalendarDate(change.clearedDate) : 'a day'}`;
+    return `Cleared ${change.clearedDomain ? clearableLabels[change.clearedDomain] : 'a record'} on ${change.clearedDate ? formatCalendarDate(change.clearedDate) : 'a day'}`;
   }
   if (change.kind === 'undo') {
     const target = all.find((item) => item.id === change.undoesId);
     const what = target ? describeChange(target, all).replace(/^Imported/, 'the import of').replace(/^Cleared/, 'clearing') : 'an earlier change';
     return `Undid ${what.replace(/:.*$/, '')}`;
   }
-  const name = change.fileName ?? 'workbook';
+  const name = change.fileNames.length ? change.fileNames.join(' + ') : 'files';
   if (change.outcome === 'unchanged') return `Imported ${name}: no changes`;
-  return `Imported ${name}: ${change.added} added, ${change.changed} corrected, ${change.unchanged} unchanged`;
+  const parts: string[] = [];
+  if (change.added + change.changed + change.unchanged > 0) parts.push(`${change.added} added, ${change.changed} corrected, ${change.unchanged} unchanged`);
+  if (change.foodAdded + change.foodChanged + change.foodUnchanged + change.foodKept > 0) {
+    parts.push(`food days ${change.foodAdded} added, ${change.foodChanged} replaced, ${change.foodUnchanged} unchanged${change.foodKept ? `, ${change.foodKept} kept from the food CSV` : ''}`);
+  }
+  return `Imported ${name}: ${parts.join('; ')}`;
+}
+
+export interface DailyIntake {
+  calories: number | null;
+  protein: number | null;
+  fat: number | null;
+  carbs: number | null;
+  /** 'detail' = sum of food entries; 'workbook' = workbook daily total (no detail for the date). Never both added together. */
+  source: 'detail' | 'workbook' | null;
+  entries: number | null;
+}
+
+/** Intake for one date: the food-detail sum when detail exists, otherwise the workbook total, labeled by source. */
+export function dailyIntake(foodDay: FoodDaySummary | undefined, workbookTotals: DailyValues | undefined): DailyIntake {
+  if (foodDay) return { calories: foodDay.calories, protein: foodDay.protein, fat: foodDay.fat, carbs: foodDay.carbs, source: 'detail', entries: foodDay.entries };
+  if (workbookTotals) {
+    return { calories: workbookTotals['Calories (kcal)'] ?? null, protein: workbookTotals['Protein (g)'] ?? null, fat: workbookTotals['Fat (g)'] ?? null,
+      carbs: workbookTotals['Carbs (g)'] ?? null, source: 'workbook', entries: null };
+  }
+  return { calories: null, protein: null, fat: null, carbs: null, source: null, entries: null };
 }
 
 export function describeCounts(counts: { added: number; changed: number; removed: number }): string {

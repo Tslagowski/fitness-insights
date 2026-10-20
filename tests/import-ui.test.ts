@@ -7,7 +7,7 @@ import { MemoryGateway } from './fixtures/memory-gateway';
 
 
 const mounted: VueWrapper[] = [];
-const commits = (gateway: MemoryGateway) => gateway.calls.filter((call) => call.method === 'commitImport');
+const commits = (gateway: MemoryGateway) => gateway.calls.filter((call) => call.method === 'commitSources');
 afterEach(() => { mounted.splice(0).forEach((wrapper) => wrapper.unmount()); window.location.hash = ''; });
 
 async function openApp(gateway: Gateway, page = 'settings') {
@@ -45,7 +45,7 @@ test('the owner previews a workbook, confirms it, and another device sees the sa
 
   await button(phone, 'Confirm import').trigger('click');
   await flushPromises();
-  expect(phone.get('[role="status"]').text()).toContain('Import confirmed: 12 added');
+  expect(phone.get('[role="status"]').text()).toContain('Import confirmed: daily records 12 added');
   expect(gateway.active[0].sourceFileId).toMatch(/^[0-9a-f]{64}$/);
   expect(commits(gateway)[0].expectedRevisionId).toBeNull();
   expect(phone.text()).toContain('through Sep 2, 2026');
@@ -62,7 +62,7 @@ test('an unsupported file is rejected with guidance and nothing is sent', async 
   const gateway = new MemoryGateway();
   const app = await openApp(gateway);
   await chooseFile(app, new TextEncoder().encode('Date,Weight\n2026-09-01,181'), 'notes.xlsx');
-  expect(app.get('[role="alert"]').text()).toContain('not an Excel workbook');
+  expect(app.get('[role="alert"]').text()).toContain('not a recognized MacroFactor export');
   expect(app.text()).not.toContain('Confirm import');
   expect(commits(gateway)).toHaveLength(0);
 });
@@ -97,8 +97,8 @@ test('a stale preview cannot overwrite another device\'s import and is refreshed
   expect(gateway.active.find((row) => row.domain === 'steps')?.values).toEqual({ Steps: 12000 });
   const summary = phone.get('[aria-label="Proposed changes"]').text();
   expect(summary).toMatch(/11\s*new daily records/);
-  expect(summary).toMatch(/1\s*corrections to saved records/);
-  expect(phone.text()).toContain('Corrections (1)');
+  expect(summary).toMatch(/1\s*correction to saved daily records/);
+  expect(phone.text()).toContain('Daily corrections (1)');
 });
 
 test('reimporting identical records reports no changes and creates no new version', async () => {
@@ -108,7 +108,7 @@ test('reimporting identical records reports no changes and creates no new versio
   await button(app, 'Confirm import').trigger('click');
   await flushPromises();
   await chooseFile(app, workbook, 'same-data-again.xlsx');
-  expect(app.text()).toContain('Everything in this workbook matches your saved history');
+  expect(app.text()).toContain('Everything in these files matches your saved history');
   await button(app, 'Confirm import').trigger('click');
   await flushPromises();
   expect(app.get('[role="status"]').text()).toContain('No changes');
