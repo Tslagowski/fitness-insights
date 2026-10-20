@@ -205,7 +205,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | --- | --- | --- |
 | 01 | Owner sign-in, private preference, navigation | Done; live verified 2026-10-19 |
 | 02 | Workbook daily-history import | Done; live verified 2026-10-19 |
-| 03 | Historical corrections and undo | Implemented; live verification pending |
+| 03 | Historical corrections and undo | Done 2026-10-20 (owner-accepted) |
 | 04 | Detailed food import without double-counting | Pending |
 | 05 | Workout import preserving logging conventions | Pending |
 | 06 | Suspicious-value and incomplete-day review | Pending |

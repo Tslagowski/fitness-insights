@@ -1,6 +1,6 @@
 # 03: Correct imported history and undo changes
 
-**Status:** in-progress (implemented 2026-10-20; live migration and owner verification pending)
+**Status:** done (2026-10-20; owner-accepted after review; live clear/undo not exercised)
 
 **What to build:** Upload an overlapping workbook and review additions/corrections, intentionally clear a day's records, or undo the latest confirmed import without losing unrelated history.
 
@@ -8,12 +8,12 @@
 
 **Acceptance criteria:**
 
-- [ ] Preview distinguishes added, changed, and unchanged data; confirmed replacement affects only explicitly represented dates within the relevant domain.
-- [ ] Absent dates preserve saved records. Explicit day clearing has its own preview and affects only the selected domain.
-- [ ] Reimporting unchanged data does not add duplicates or create an artificial changing import version.
-- [ ] Every changing import preserves the prior revision; Undo last import restores the previous active records and relevant review state atomically.
-- [ ] A preview based on an older revision cannot overwrite a change from another device. The user is prompted to refresh the preview.
-- [ ] Retried/failed commits preserve history; the import history explains the result. The revision contract supports additional source domains without a separate correction mechanism.
+- [x] Preview distinguishes added, changed, and unchanged data; confirmed replacement affects only explicitly represented dates within the relevant domain.
+- [x] Absent dates preserve saved records. Explicit day clearing has its own preview and affects only the selected domain.
+- [x] Reimporting unchanged data does not add duplicates or create an artificial changing import version.
+- [x] Every changing import preserves the prior revision; Undo last import restores the previous active records and relevant review state atomically.
+- [x] A preview based on an older revision cannot overwrite a change from another device. The user is prompted to refresh the preview.
+- [x] Retried/failed commits preserve history; the import history explains the result. The revision contract supports additional source domains without a separate correction mechanism.
 
 ## Implementation evidence (2026-10-20)
 
@@ -27,3 +27,9 @@ Verified locally:
 - Full suite: 36 unit/UI/database tests and 5 browser tests pass; typecheck and both production builds pass.
 
 Not yet verified live: the migration run on Supabase, and the owner clearing a day and undoing on the hosted app.
+
+## Live verification (2026-10-20)
+
+- Database migrations workflow run 39438022374 applied `202610200001_corrections_and_undo.sql`; Check run 39438021877 passed; Deploy GitHub Pages run 39438183344 passed.
+- Anonymous calls to `clear_day` and `undo_last_change` (including the dry run) return `42501`.
+- The owner reviewed the deployed Imports & Settings page and accepted the ticket. A live clear-and-undo on real data was not performed; that behavior is covered by the database, UI, and browser tests above.

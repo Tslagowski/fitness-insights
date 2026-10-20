@@ -61,7 +61,7 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 - `src/components/`: the import panel, daily history table, Correct a day panel, and change history with Undo.
 - `supabase/migrations`: owner allowlist, row-level access rules, revisioned daily history with the atomic `commit_import` function, and the private source archive bucket.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is implemented and awaiting live verification.
+- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is in progress.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.
