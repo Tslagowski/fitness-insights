@@ -1,5 +1,11 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { defaultPreferences, type DisplayDensity, type Gateway, type Preferences } from './gateway';
+import {
+  defaultPreferences, StaleRevisionError, type DisplayDensity, type Gateway, type ImportCommitRequest,
+  type ImportCommitResult, type ImportedHistory, type Preferences,
+} from './gateway';
+import type { DailyDomain, DailyValues } from './import/workbook';
+
+const archiveBucket = 'source-archives';
 
 function decodePreferences(value: unknown): Preferences {
   const record = value as Record<string, unknown> | null;
@@ -52,6 +58,38 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
       const { error } = await client.auth.signOut({ scope: 'local' });
       if (error) throw error;
     },
+    async loadHistory(): Promise<ImportedHistory> {
+      const { data, error } = await client.rpc('active_history');
+      if (error) throw error;
+      if (!data) throw new Error('Saved history is unavailable for this account.');
+      return decodeHistory(data);
+    },
+    async commitImport(request: ImportCommitRequest): Promise<ImportCommitResult> {
+      // Content-addressed and immutable: re-uploading the same file is harmless.
+      const { error: uploadError } = await client.storage.from(archiveBucket).upload(
+        `workbooks/${request.file.sha256}.xlsx`,
+        new Blob([request.file.bytes as BlobPart], { type: request.file.mediaType }),
+        { contentType: request.file.mediaType, upsert: false },
+      );
+      if (uploadError && !isAlreadyStored(uploadError)) throw uploadError;
+      const { data, error } = await client.rpc('commit_import', {
+        p_request_id: request.requestId,
+        p_expected_revision_id: request.expectedRevisionId,
+        p_source: { sha256: request.file.sha256, file_name: request.file.name, byte_size: request.file.byteSize, media_type: request.file.mediaType },
+        p_records: request.records.map((record) => ({ date: record.date, domain: record.domain, fields: record.values })),
+      });
+      if (error) {
+        if (error.code === 'FI409') throw new StaleRevisionError(error.message);
+        throw error;
+      }
+      const result = data as Record<string, unknown>;
+      return {
+        outcome: result.outcome === 'changed' ? 'changed' : 'unchanged',
+        replayed: result.replayed === true,
+        revisionId: typeof result.revision_id === 'number' ? result.revision_id : null,
+        added: Number(result.added), changed: Number(result.changed), unchanged: Number(result.unchanged),
+      };
+    },
     onIdentityChange(listener) {
       const pending = new Set<ReturnType<typeof setTimeout>>();
       const { data } = client.auth.onAuthStateChange(() => {
@@ -61,5 +99,34 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
       });
       return () => { data.subscription.unsubscribe(); pending.forEach(clearTimeout); };
     },
+  };
+}
+
+function isAlreadyStored(error: { message?: string; status?: number; statusCode?: string }): boolean {
+  return error.status === 409 || error.statusCode === '409' || /already exists/i.test(error.message ?? '');
+}
+
+function decodeHistory(value: unknown): ImportedHistory {
+  const history = value as { revision_id: number | null; records: Array<Record<string, unknown>>; imports: Array<Record<string, unknown>> };
+  return {
+    revisionId: history.revision_id ?? null,
+    records: history.records.map((record) => ({
+      date: String(record.date),
+      domain: record.domain as DailyDomain,
+      values: record.fields as DailyValues,
+      sourceFileId: String(record.source_file_id),
+      revisionId: Number(record.revision_id),
+    })),
+    imports: history.imports.map((item) => ({
+      id: String(item.id),
+      committedAt: String(item.committed_at),
+      outcome: item.outcome === 'changed' ? 'changed' : 'unchanged',
+      revisionId: typeof item.revision_id === 'number' ? item.revision_id : null,
+      added: Number(item.added), changed: Number(item.changed), unchanged: Number(item.unchanged),
+      firstDate: (item.first_date as string | null) ?? null,
+      lastDate: (item.last_date as string | null) ?? null,
+      fileName: String(item.file_name),
+      byteSize: Number(item.byte_size),
+    })),
   };
 }

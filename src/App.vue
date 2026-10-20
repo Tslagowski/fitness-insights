@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { defaultPreferences, type DisplayDensity, type Gateway, type Identity, type Preferences } from './gateway';
+import { defaultPreferences, emptyHistory, type DisplayDensity, type Gateway, type Identity, type ImportedHistory, type Preferences } from './gateway';
+import WorkbookImport from './components/WorkbookImport.vue';
+import DailyTable from './components/DailyTable.vue';
+import { formatCalendarDate, reportingToday } from './import/preview';
 
 const props = defineProps<{ gateway: Gateway | null; configurationProblem?: string }>();
 const pages = [
@@ -21,6 +24,9 @@ const saving = ref(false);
 const signingIn = ref(false);
 const signingOut = ref(false);
 const signOutRequired = ref(false);
+const history = ref<ImportedHistory>({ ...emptyHistory });
+const historyState = ref<'loading' | 'ready' | 'error'>('loading');
+const historyDates = computed(() => [...new Set(history.value.records.map((record) => record.date))].sort());
 let revision = 0;
 let unsubscribe = () => {};
 
@@ -39,6 +45,8 @@ async function refreshIdentity() {
   notice.value = '';
   error.value = '';
   saving.value = false;
+  history.value = { ...emptyHistory };
+  historyState.value = 'loading';
   if (!props.gateway) { state.value = 'setup'; return; }
   state.value = 'loading';
   try {
@@ -54,10 +62,28 @@ async function refreshIdentity() {
     preferences.value = savedPreferences;
     draftDensity.value = savedPreferences.displayDensity;
     state.value = 'ready';
+    void reloadHistory();
   } catch {
     if (currentRevision !== revision) return;
     state.value = 'error';
     error.value = 'We could not load your workspace. Check your connection and try again.';
+  }
+}
+/** Loads the active shared history. Returns false (keeping the last confirmed view) if it fails. */
+async function reloadHistory(): Promise<boolean> {
+  if (!props.gateway || state.value !== 'ready') return false;
+  const currentRevision = revision;
+  if (!history.value.records.length) historyState.value = 'loading';
+  try {
+    const loaded = await props.gateway.loadHistory();
+    if (currentRevision !== revision) return false;
+    history.value = loaded;
+    historyState.value = 'ready';
+    return true;
+  } catch {
+    if (currentRevision !== revision) return false;
+    if (!history.value.records.length) historyState.value = 'error';
+    return false;
   }
 }
 async function signIn() {
@@ -76,6 +102,7 @@ async function signOut() {
   // Hide private state immediately, including responses from in-flight saves.
   identity.value = null;
   preferences.value = { ...defaultPreferences };
+  history.value = { ...emptyHistory };
   notice.value = '';
   error.value = '';
   state.value = 'signed-out';
@@ -174,6 +201,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
 
         <template v-else-if="state === 'ready'">
           <template v-if="page === 'settings'">
+            <WorkbookImport v-if="gateway" :gateway="gateway" :history="history" :history-state="historyState" :reload-history="reloadHistory" />
             <section class="section-card"><div class="section-heading"><div><div class="eyebrow">MAKE IT YOURS</div><h2>Display preferences</h2></div><span class="outline-pill">Saved to your account</span></div>
               <form @submit.prevent="save"><label class="field-label" for="density">Display density</label><p class="field-help">Choose how much space to leave between records.</p>
                 <select id="density" aria-label="Display density" v-model="draftDensity" :disabled="saving"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select>
@@ -183,11 +211,20 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             </section>
             <section class="section-card"><div class="eyebrow">CONSISTENT ACROSS DEVICES</div><h2>Reporting calendar</h2><dl class="calendar-details"><div><dt>Time zone</dt><dd>America/Denver</dd></div><div><dt>Week starts</dt><dd>Monday</dd></div></dl></section>
           </template>
+          <template v-else-if="page === 'nutrition' && history.records.length">
+            <section class="section-card"><div class="section-heading"><div><div class="eyebrow">IMPORTED DAILY HISTORY</div><h2>Daily records</h2></div>
+              <span class="outline-pill">Version {{ history.revisionId }}</span></div>
+              <p class="field-help">{{ historyDates.length }} dates, {{ formatCalendarDate(historyDates[0]) }} – {{ formatCalendarDate(historyDates[historyDates.length - 1]) }}.
+                Values are shown exactly as exported; "—" means not recorded. Nutrition totals come from the workbook until detailed food imports are available. Analysis and charts arrive in later updates.</p>
+              <DailyTable :records="history.records" :today="reportingToday()" caption="Saved daily history" />
+            </section>
+          </template>
+          <section v-else-if="page === 'nutrition' && historyState === 'error'" class="empty-card"><h2>Your saved history could not be loaded.</h2><p>Nothing has been changed. If the free service is paused, resume the project and retry.</p><button class="primary-button" @click="reloadHistory">Try again</button></section>
           <section v-else class="empty-card data-empty"><div class="empty-mark" aria-hidden="true"><span></span><span></span><span></span></div>
             <div class="eyebrow">YOUR STARTING POINT</div>
             <h2>{{ page === 'training' ? 'Your training story starts here.' : page === 'nutrition' ? 'Room for the whole picture.' : `Welcome to your workspace, ${identity?.name}.` }}</h2>
-            <p>{{ page === 'training' ? 'No workout history has been imported. Exercise progress will appear here once workout imports are available.' : page === 'nutrition' ? 'No nutrition or weight history has been imported. This view will bring your intake, weight, and activity together.' : 'Your account is connected. Set your display preference while we prepare the import and analysis features.' }}</p>
-            <a class="primary-button" href="#settings" @click="navigate('settings')">Open preferences <span aria-hidden="true">&rarr;</span></a>
+            <p>{{ page === 'training' ? 'No workout history has been imported. Exercise progress will appear here once workout imports are available.' : page === 'nutrition' ? 'No nutrition or weight history has been imported yet. Import a MacroFactor workbook to see your daily records here.' : history.records.length ? `Your saved history covers ${historyDates.length} dates through ${formatCalendarDate(historyDates[historyDates.length - 1])}. Written findings arrive in a later update.` : 'Your account is connected. Import a MacroFactor workbook to start building your history.' }}</p>
+            <a class="primary-button" href="#settings" @click="navigate('settings')">{{ page === 'training' ? 'Open settings' : 'Open imports' }} <span aria-hidden="true">&rarr;</span></a>
           </section>
         </template>
 
@@ -196,7 +233,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
           <article><span class="feature-number">02 / TRAINING</span><h3>Follow your progress.</h3><p>Exercise history with the details that matter.</p></article>
           <article><span class="feature-number">03 / UNDERSTANDING</span><h3>Know what changed.</h3><p>Clear summaries supported by your records.</p></article>
         </section>
-        <section v-if="state === 'ready' && page === 'settings'" class="import-note"><div><h3>Data imports</h3><p>Workbook and CSV imports are coming in the next implementation tickets.</p></div><span class="outline-pill">Not available yet</span></section>
+        <section v-if="state === 'ready' && page === 'settings'" class="import-note"><div><h3>Food and workout details</h3><p>Detailed food CSV and workout CSV imports are coming in the next implementation tickets.</p></div><span class="outline-pill">Not available yet</span></section>
         <footer class="page-footer"><span>FITNESS INSIGHTS</span><span>Personal analytics, built around your history.</span></footer>
       </main>
     </div>

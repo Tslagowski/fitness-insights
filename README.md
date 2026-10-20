@@ -1,6 +1,6 @@
 # Fitness Insights
 
-A personal Vue/TypeScript/Vite workspace for nutrition and training analysis. This implementation covers ticket 01: GitHub sign-in, owner-only preference storage, responsive navigation, and honest empty states. It is live at https://tslagowski.github.io/fitness-insights/ (verified 2026-10-19). Data imports and analytics are not implemented yet.
+A personal Vue/TypeScript/Vite workspace for nutrition and training analysis. This implementation covers ticket 01: GitHub sign-in, owner-only preference storage, responsive navigation, and honest empty states. It is live at https://tslagowski.github.io/fitness-insights/ (verified 2026-10-19). Ticket 02 adds MacroFactor workbook imports of daily history (weight, trend weight, expenditure, nutrition totals, targets, steps) with preview, atomic commit, and a private raw-file archive. Food/workout detail imports and analytics are not implemented yet.
 
 ## Run locally
 
@@ -26,7 +26,7 @@ Database tests run the actual migration against embedded PostgreSQL with represe
 
 ## Connect the free services
 
-1. Create/select your Supabase Free project. Do not enable a paid plan. Run `supabase/migrations/202609150001_owner_preferences.sql` once through its SQL editor. This initially allows nobody to access app preferences.
+1. Create/select your Supabase Free project. Do not enable a paid plan. Run each file in `supabase/migrations/` once through its SQL editor, in filename order: `202609150001_owner_preferences.sql`, then `202610190001_workbook_daily_history.sql`, then `202610190002_source_archive_storage.sql` (creates the private `source-archives` Storage bucket). This initially allows nobody to access app data. If the editor offers to enable RLS for `private.app_owner`, accepting is harmless.
 2. Create a GitHub OAuth application. Its authorization callback is the Supabase callback shown under Authentication / Providers / GitHub, usually `https://PROJECT_REF.supabase.co/auth/v1/callback`. Put the OAuth client ID and secret in Supabase only.
 3. Enable GitHub in Supabase. Disable unneeded sign-in providers. Under authentication URL settings, allow your exact app root, including repository path and trailing slash, plus your local development root if needed. For a repo named `fitness-insights`, examples are `https://OWNER.github.io/fitness-insights/` and `http://localhost:5173/`. Set the production root as Site URL. Do not use a separate `/auth/callback` frontend route; GitHub Pages serves the app root and navigation uses hashes.
 4. Copy the Supabase project URL and `sb_publishable_...` API key into `.env.local`. Set `VITE_BASE_PATH=/` for local root or `/fitness-insights/` to test that subpath.
@@ -56,10 +56,12 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 ## Architecture and scope
 
 - `src/App.vue`: account lifecycle, navigation, settings, empty states.
-- `src/supabase-gateway.ts`: OAuth and preference transport.
-- `supabase/migrations`: owner allowlist and row-level access rules.
+- `src/supabase-gateway.ts`: OAuth, preference, archive upload, and import transport.
+- `src/import/`: workbook reading (`xlsx.ts`), MacroFactor schema detection and daily records (`workbook.ts`), and preview comparison (`preview.ts`).
+- `src/components/`: the import panel and daily history table.
+- `supabase/migrations`: owner allowlist, row-level access rules, revisioned daily history with the atomic `commit_import` function, and the private source archive bucket.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; ticket 01 is done; ticket 02 is next.
+- `tickets`: approved work and blocking dependencies; ticket 01 is done; ticket 02 is implemented and awaiting live verification.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.
@@ -106,3 +108,16 @@ Stop any `npm run dev` Terminal session first; the script refuses to start if po
 ```
 
 Add that exact `https://…ts.net/` address (trailing slash) to Supabase's redirect URLs. Do not use a bare `http://100.x.y.z:5173/` address: Supabase's firewall blocks sign-in redirects to raw IP addresses. This is a development convenience only; it does not change the GitHub Pages plus Supabase Free hosting.
+
+## Workbook imports (ticket 02)
+
+In Imports & Settings, choose a MacroFactor `.xlsx` export. The app reads it in the browser and recognizes the daily summary sheet by its columns (not the file or sheet name). It then shows a preview before anything is saved: date coverage per domain, new/corrected/unchanged record counts, any invalid values, how each sheet is handled, and the daily values. Confirming uploads the raw file to the private `source-archives` bucket (content-addressed, immutable) and calls `commit_import`, which:
+
+- runs in one transaction and only for the enrolled owner;
+- replaces only the dates and domains the workbook represents, leaving absent dates untouched;
+- creates a new data revision only when something changed; an identical reimport is recorded as "no changes";
+- rejects a preview prepared against an older revision (for example after another device imported), so the app refreshes the preview instead of overwriting;
+- returns the original result when a request is retried, so a lost response cannot create a duplicate.
+
+Blank cells stay missing, never zero. Workbook nutrition totals are provisional until detailed food imports (ticket 04). Food Log and Workout Log sheets are reported but not imported yet; muscle-group and program sheets are archived with the raw file only.
+

@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { expect, test } from 'vitest';
 import App from '../src/App.vue';
-import { defaultPreferences, type Gateway, type Identity, type DisplayDensity } from '../src/gateway';
+import { defaultPreferences, emptyHistory, type Gateway, type Identity, type DisplayDensity } from '../src/gateway';
 
 class MemoryGateway implements Gateway {
   identity: Identity | null = { id: 'owner', name: 'Trevis' };
@@ -20,6 +20,8 @@ class MemoryGateway implements Gateway {
   async signIn() {}
   async signOut() { this.identity = null; this.listener(); }
   onIdentityChange(listener: () => void) { this.listener = listener; return () => { this.listener = () => {}; }; }
+  async loadHistory() { return { ...emptyHistory }; }
+  async commitImport(): Promise<never> { throw new Error('Imports are covered in import-ui.test.ts'); }
 }
 
 test('the owner saves density and sees the saved choice on a fresh app instance', async () => {
