@@ -12,6 +12,7 @@ import type { DurationUnit } from './import/workout';
 import DailyTable from './components/DailyTable.vue';
 import CorrectDay from './components/CorrectDay.vue';
 import ChangeHistory from './components/ChangeHistory.vue';
+import IntakeBalance from './components/IntakeBalance.vue';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
 const props = defineProps<{ gateway: Gateway | null; configurationProblem?: string }>();
@@ -230,10 +231,11 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <section class="section-card"><div class="eyebrow">CONSISTENT ACROSS DEVICES</div><h2>Reporting calendar</h2><dl class="calendar-details"><div><dt>Time zone</dt><dd>America/Denver</dd></div><div><dt>Week starts</dt><dd>Monday</dd></div></dl></section>
           </template>
           <template v-else-if="page === 'nutrition' && (history.records.length || history.foodDays.length)">
+            <IntakeBalance :history="history" :report="eligibility" />
             <section class="section-card"><div class="section-heading"><div><div class="eyebrow">IMPORTED DAILY HISTORY</div><h2>Daily records</h2></div>
               <span class="outline-pill">Version {{ history.revisionId }}</span></div>
               <p class="field-help">{{ historyDates.length }} dates, {{ formatCalendarDate(historyDates[0]) }} – {{ formatCalendarDate(historyDates[historyDates.length - 1]) }}.
-                Values are shown exactly as exported; "—" means not recorded. Intake is the sum of that day's food entries when they exist, otherwise the workbook's daily total; the two are never added together. Analysis and charts arrive in later updates.</p>
+                Values are shown exactly as exported; "—" means not recorded. Intake is the sum of that day's food entries when they exist, otherwise the workbook's daily total; the two are never added together. </p>
               <DailyTable :records="history.records" :food-days="history.foodDays" :today="reportingToday()" :statuses="eligibility.days" caption="Saved daily history" />
             </section>
             <FoodLog v-if="gateway && history.foodDays.length" :gateway="gateway" :food-days="history.foodDays" :today="reportingToday()" />

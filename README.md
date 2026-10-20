@@ -59,10 +59,11 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 - `src/supabase-gateway.ts`: OAuth, preference, archive upload, and import transport.
 - `src/import/`: workbook reading (`xlsx.ts`), CSV reading (`csv.ts`), MacroFactor daily records (`workbook.ts`), food entries (`food.ts`), workout sets and sessions (`workout.ts`), multi-file import plans (`sources.ts`), and preview helpers (`preview.ts`).
 - `src/analysis/eligibility.ts`: completed-day eligibility, import cutoffs, weight review flags, and completeness (ticket 06), shared by later analysis.
+- `src/analysis/intake.ts`: intake distribution, target difference, and modeled energy balance per period with coverage gates (ticket 07).
 - `src/components/`: the data status, review queue, and incomplete-days panels, the import panel, daily history table, food log, training log with exercise aliases, Correct a day panel, and change history with Undo.
 - `supabase/migrations`: owner allowlist, row-level access rules, revisioned daily history with the atomic `commit_import` function, and the private source archive bucket.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is done; ticket 06 is deployed and awaiting owner review; ticket 07 is in progress.
+- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is done; ticket 06 is deployed and awaiting owner review; ticket 07 is implemented and awaiting owner review.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.
@@ -175,4 +176,15 @@ The import also accepts the MacroFactor workout CSV (alone or with the other fil
 - **Incomplete days:** the owner can mark a day's nutrition logging incomplete (Overview), which leaves only that day's intake out; low intake is never assumed incomplete and high intake is never removed automatically.
 - **Timing:** today is in progress and later dates are planned. Completed-day cutoffs come from the latest (not undone) import that included each kind of data: the day before that import, never after yesterday. A pre-logged day is not confirmed by time passing alone.
 - Decisions and completeness marks are append-only owner logs (`review_decisions`, `completeness_marks`, read through `review_state()`); the latest entry per value or date wins. They are not part of import revisions, so importing, clearing, and Undo never remove them.
+
+## Intake and modeled energy balance (ticket 07)
+
+Nutrition & Weight opens with **Intake and modeled energy balance**, computed by `src/analysis/intake.ts` (method `intake-balance-v1`) from the ticket 06 eligibility results. No database change.
+
+- **Periods:** 7 days, 28 days (default), or a custom range of up to 366 days ending before today. Each is compared with the same number of days immediately before it. The 7- and 28-day periods end at the latest past day with imported intake that a later import has confirmed; the end date and data freshness are shown.
+- **Counted intake** uses eligible days only (food entries when present, otherwise the workbook total; days marked incomplete, today, planned and unconfirmed days are left out with their reason). High-intake days always stay in.
+- **Metrics:** mean, median, population standard deviation, and mean difference from target; on matched days (counted intake and an eligible expenditure estimate on the same date): net, gross surplus and gross deficit, surplus-day frequency, and surplus ÷ deficit (unavailable when there is no deficit; may exceed 100%).
+- **Coverage:** each period needs 5 of 7 or 21 of 28 days, otherwise 75% of its length rounded up: counted days for intake metrics, matched days for balance metrics. Below that, the headline reads Insufficient coverage, comparisons are withheld, and the charts and date list stay available.
+- **Charts** (intake columns with expenditure and target lines; daily modeled balance) read the same rows as the metrics. Tapping a day, or using the arrow keys, shows its values, status, and formulas. "Dates behind these numbers" lists every date in the period, and "How these are calculated" lists the formulas.
+- Modeled balance is labeled as an estimate built from MacroFactor's expenditure estimate, never as measured fat or weight change.
 
