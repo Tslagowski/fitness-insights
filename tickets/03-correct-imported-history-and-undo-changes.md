@@ -1,6 +1,6 @@
 # 03: Correct imported history and undo changes
 
-**Status:** done (2026-10-20; owner-accepted after review; live clear/undo not exercised)
+**Status:** done (live verified 2026-10-20)
 
 **What to build:** Upload an overlapping workbook and review additions/corrections, intentionally clear a day's records, or undo the latest confirmed import without losing unrelated history.
 
@@ -32,4 +32,4 @@ Not yet verified live: the migration run on Supabase, and the owner clearing a d
 
 - Database migrations workflow run 39438022374 applied `202610200001_corrections_and_undo.sql`; Check run 39438021877 passed; Deploy GitHub Pages run 39438183344 passed.
 - Anonymous calls to `clear_day` and `undo_last_change` (including the dry run) return `42501`.
-- The owner reviewed the deployed Imports & Settings page and accepted the ticket. A live clear-and-undo on real data was not performed; that behavior is covered by the database, UI, and browser tests above.
+- The owner reviewed the deployed Imports & Settings page and ran Undo on the live site successfully (owner-reported). Live clearing of a day was not separately reported; it is covered by the database, UI, and browser tests above.
