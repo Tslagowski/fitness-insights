@@ -30,4 +30,6 @@ Verified locally:
 - 1 Chromium browser test at 390px with mocked Supabase transport: archive upload path, single commit with null expected revision, no horizontal overflow; screenshots inspected.
 - Full suite: 26 unit/UI/database tests and 4 browser tests pass; typecheck and default plus subpath production builds pass.
 
-Not yet verified live: running the two new migrations on the Supabase project, Storage bucket policies, an actual import on the hosted app, and viewing it from a second device. Storage policies are not exercised by the embedded database tests.
+Migrations are applied by the Database migrations workflow (Supabase CLI `db push`); the hand-applied baseline migration was made idempotent so the first automated run can re-apply it safely (covered by a re-run test).
+
+Not yet verified live: the first workflow run against the Supabase project, Storage bucket policies, an actual import on the hosted app, and viewing it from a second device. Storage policies are not exercised by the embedded database tests.

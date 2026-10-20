@@ -1,6 +1,5 @@
 -- Ticket 02: workbook daily history with atomic, idempotent, owner-only imports.
--- Run after 202609150001_owner_preferences.sql. Then run 202610190002_source_archive_storage.sql.
-begin;
+-- Applied by the Database migrations workflow (supabase db push), which runs each file in one transaction.
 
 -- Immutable metadata for each distinct source file. Content-addressed by SHA-256.
 create table public.source_files (
@@ -250,5 +249,3 @@ as $$
 $$;
 revoke all on function public.active_history() from public, anon;
 grant execute on function public.active_history() to authenticated;
-
-commit;

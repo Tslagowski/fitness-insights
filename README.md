@@ -26,7 +26,7 @@ Database tests run the actual migration against embedded PostgreSQL with represe
 
 ## Connect the free services
 
-1. Create/select your Supabase Free project. Do not enable a paid plan. Run each file in `supabase/migrations/` once through its SQL editor, in filename order: `202609150001_owner_preferences.sql`, then `202610190001_workbook_daily_history.sql`, then `202610190002_source_archive_storage.sql` (creates the private `source-archives` Storage bucket). This initially allows nobody to access app data. If the editor offers to enable RLS for `private.app_owner`, accepting is harmless.
+1. Create/select your Supabase Free project. Do not enable a paid plan. Database changes are applied by the `Database migrations` GitHub Actions workflow (see "Database changes" below); add its two secrets first. The migrations initially allow nobody to access app data. (Fallback without the workflow: run each file in `supabase/migrations/` once in the SQL editor, in filename order.)
 2. Create a GitHub OAuth application. Its authorization callback is the Supabase callback shown under Authentication / Providers / GitHub, usually `https://PROJECT_REF.supabase.co/auth/v1/callback`. Put the OAuth client ID and secret in Supabase only.
 3. Enable GitHub in Supabase. Disable unneeded sign-in providers. Under authentication URL settings, allow your exact app root, including repository path and trailing slash, plus your local development root if needed. For a repo named `fitness-insights`, examples are `https://OWNER.github.io/fitness-insights/` and `http://localhost:5173/`. Set the production root as Site URL. Do not use a separate `/auth/callback` frontend route; GitHub Pages serves the app root and navigation uses hashes.
 4. Copy the Supabase project URL and `sb_publishable_...` API key into `.env.local`. Set `VITE_BASE_PATH=/` for local root or `/fitness-insights/` to test that subpath.
@@ -120,4 +120,17 @@ In Imports & Settings, choose a MacroFactor `.xlsx` export. The app reads it in 
 - returns the original result when a request is retried, so a lost response cannot create a duplicate.
 
 Blank cells stay missing, never zero. Workbook nutrition totals are provisional until detailed food imports (ticket 04). Food Log and Workout Log sheets are reported but not imported yet; muscle-group and program sheets are archived with the raw file only.
+
+## Database changes
+
+Schema changes live in `supabase/migrations/` and are applied by the **Database migrations** workflow (`.github/workflows/migrate.yml`) using the free Supabase CLI. Nothing needs to run on a personal computer.
+
+- It runs automatically when a migration file changes on `main`, and manually from Actions > Database migrations > Run workflow (with an optional dry run that only lists pending migrations).
+- It first runs the database tests against embedded PostgreSQL, then `supabase link` and `supabase db push`. The CLI records applied versions in `supabase_migrations.schema_migrations`, runs only new files in filename order, and wraps each file in a transaction, so a failing migration leaves the database unchanged.
+- One-time setup in GitHub repository Settings > Secrets and variables > Actions > **Secrets**:
+  - `SUPABASE_ACCESS_TOKEN`: a Supabase personal access token (supabase.com/dashboard/account/tokens).
+  - `SUPABASE_DB_PASSWORD`: the project's database password (Project Settings > Database; reset it there if lost).
+  The project ref comes from the existing `VITE_SUPABASE_URL` variable.
+- Write new migrations as new files with a later numeric prefix. Never edit a migration that has already been applied, except to make it safely re-runnable with the same result (as was done for the hand-applied baseline `202609150001_owner_preferences.sql`).
+- Deploy the frontend (Deploy GitHub Pages) after the migrations it depends on have succeeded.
 

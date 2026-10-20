@@ -58,3 +58,14 @@ test('only the configured GitHub owner can store and retrieve a preference', asy
     await expect(database.exec("update public.preferences set display_density = 'invalid'")).rejects.toThrow();
   });
 });
+
+test('re-running the baseline migration keeps owner enrollment, saved preferences, and access rules', async () => {
+  await database.exec(await readFile('supabase/migrations/202609150001_owner_preferences.sql', 'utf8'));
+  expect((await database.query('select user_id from private.app_owner')).rows).toEqual([{ user_id: ownerId }]);
+  await asIdentity('authenticated', ownerId, async () => {
+    expect((await database.query<{ display_density: string }>('select display_density from public.preferences')).rows).toEqual([{ display_density: 'compact' }]);
+  });
+  await asIdentity('authenticated', strangerId, async () => {
+    expect((await database.query('select * from public.preferences')).rows).toEqual([]);
+  });
+});
