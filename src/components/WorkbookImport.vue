@@ -31,7 +31,7 @@ const outcome = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
 const today = computed(() => reportingToday());
 const freshness = computed(() => domainFreshness(props.history));
-const lastImport = computed(() => props.history.imports[0] ?? null);
+const lastImport = computed(() => props.history.imports.find((item) => item.kind === 'workbook') ?? null);
 
 const dispositionText: Record<SheetDisposition, string> = {
   imported: 'Imported now: daily history',
@@ -161,6 +161,7 @@ function chooseFile() { fileInput.value?.click(); }
         <div><span class="change-count">{{ preview.changes.changed }}</span><span>corrections to saved records</span></div>
         <div><span class="change-count">{{ preview.changes.unchanged }}</span><span>already saved, unchanged</span></div>
       </div>
+      <p v-if="preview.changes.keptDates" class="field-help">{{ preview.changes.keptDates }} saved {{ preview.changes.keptDates === 1 ? 'date is' : 'dates are' }} not in this file and will stay exactly as {{ preview.changes.keptDates === 1 ? 'it is' : 'they are' }}.</p>
       <p v-if="preview.changes.added + preview.changes.changed === 0" class="field-help">Everything in this workbook matches your saved history. Confirming records the upload but creates no new version.</p>
 
       <details v-if="preview.changes.corrections.length" class="preview-section" open>
@@ -213,10 +214,6 @@ function chooseFile() { fileInput.value?.click(); }
             <dd>{{ item.lastValueDate ? `through ${formatCalendarDate(item.lastValueDate)}` : 'no values yet' }} · {{ item.dates }} dates</dd></div>
         </dl>
         <p v-if="lastImport" class="muted">Last import {{ formatTimestamp(lastImport.committedAt) }} ({{ lastImport.fileName }}). Version {{ history.revisionId }}.</p>
-        <details class="preview-section"><summary>Import log ({{ history.imports.length }})</summary>
-          <ul class="plain-list"><li v-for="item in history.imports" :key="item.id"><strong>{{ formatTimestamp(item.committedAt) }} · {{ item.fileName }}</strong>
-            <span>{{ item.outcome === 'changed' ? `${item.added} added, ${item.changed} corrected, ${item.unchanged} unchanged` : 'No changes' }}<template v-if="item.firstDate"> · {{ formatCalendarDate(item.firstDate) }} – {{ formatCalendarDate(item.lastDate!) }}</template></span></li></ul>
-        </details>
       </template>
     </div>
   </section>

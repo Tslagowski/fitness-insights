@@ -1,5 +1,5 @@
 import { PGlite } from '@electric-sql/pglite';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 
 export const ownerId = '11111111-1111-4111-8111-111111111111';
 export const strangerId = '22222222-2222-4222-8222-222222222222';
@@ -27,15 +27,21 @@ export async function createTestDatabase(): Promise<PGlite> {
     grant execute on all functions in schema auth to anon, authenticated, table_owner;
     grant usage on schema public to table_owner;
   `);
-  await database.exec(await readFile('supabase/migrations/202609150001_owner_preferences.sql', 'utf8'));
-  await database.exec(await readFile('supabase/migrations/202610190001_workbook_daily_history.sql', 'utf8'));
+  // Every migration except the Supabase-only Storage setup, in filename order, as the workflow applies them.
+  const migrations = (await readdir('supabase/migrations')).filter((name) => name.endsWith('.sql') && !name.includes('storage')).sort();
+  for (const name of migrations) await database.exec(await readFile(`supabase/migrations/${name}`, 'utf8'));
   await database.exec(`
-    alter table public.source_files owner to table_owner;
-    alter table public.data_revisions owner to table_owner;
-    alter table public.workspace_state owner to table_owner;
-    alter table public.import_batches owner to table_owner;
-    alter table public.daily_records owner to table_owner;
-    alter function public.commit_import(uuid, bigint, jsonb, jsonb) owner to table_owner;
+    do $$
+    declare item record;
+    begin
+      for item in select tablename from pg_tables where schemaname = 'public' and tablename <> 'preferences' loop
+        execute format('alter table public.%I owner to table_owner', item.tablename);
+      end loop;
+      for item in select p.oid::regprocedure as signature from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                  where n.nspname = 'public' and p.prosecdef and p.proname <> 'is_app_owner' loop
+        execute format('alter function %s owner to table_owner', item.signature);
+      end loop;
+    end $$;
     grant create on schema public to table_owner;
     -- On Supabase one role (postgres) owns both functions; mirror that ability here.
     grant execute on function public.is_app_owner() to table_owner;

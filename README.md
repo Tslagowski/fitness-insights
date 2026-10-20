@@ -58,10 +58,10 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 - `src/App.vue`: account lifecycle, navigation, settings, empty states.
 - `src/supabase-gateway.ts`: OAuth, preference, archive upload, and import transport.
 - `src/import/`: workbook reading (`xlsx.ts`), MacroFactor schema detection and daily records (`workbook.ts`), and preview comparison (`preview.ts`).
-- `src/components/`: the import panel and daily history table.
+- `src/components/`: the import panel, daily history table, Correct a day panel, and change history with Undo.
 - `supabase/migrations`: owner allowlist, row-level access rules, revisioned daily history with the atomic `commit_import` function, and the private source archive bucket.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is next.
+- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is implemented and awaiting live verification.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.
@@ -133,4 +133,14 @@ Schema changes live in `supabase/migrations/` and are applied by the **Database 
   The project ref comes from the existing `VITE_SUPABASE_URL` variable.
 - Write new migrations as new files with a later numeric prefix. Never edit a migration that has already been applied, except to make it safely re-runnable with the same result (as was done for the hand-applied baseline `202609150001_owner_preferences.sql`).
 - Deploy the frontend (Deploy GitHub Pages) after the migrations it depends on have succeeded.
+
+## Corrections and undo (ticket 03)
+
+Every shared change is append-only: an import, a cleared day, or an undo creates a new data revision, and earlier records are only marked with the revision that retired them, so any earlier version can be reconstructed.
+
+- **Overlapping imports** preview new, corrected, and unchanged records (with before/after values) and state how many saved dates outside the file stay untouched.
+- **Correct a day** (Imports & Settings) clears one domain on one date after a confirmation step, via `clear_day`. Other domains on that date and all other dates are unchanged. Re-importing a workbook that contains the date adds it back.
+- **Undo** reverts the latest import or correction that has not been undone, via `undo_last_change`, restoring exactly the records that were active before it. A dry run previews what will be restored, reverted, or removed. Repeating Undo steps further back.
+- **Change history** lists imports, clears, and undos in plain language and marks undone changes.
+- Clear and undo use the same stale-preview check and retry-safe request ids as imports.
 

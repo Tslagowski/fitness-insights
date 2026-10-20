@@ -3,6 +3,8 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { defaultPreferences, emptyHistory, type DisplayDensity, type Gateway, type Identity, type ImportedHistory, type Preferences } from './gateway';
 import WorkbookImport from './components/WorkbookImport.vue';
 import DailyTable from './components/DailyTable.vue';
+import CorrectDay from './components/CorrectDay.vue';
+import ChangeHistory from './components/ChangeHistory.vue';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
 const props = defineProps<{ gateway: Gateway | null; configurationProblem?: string }>();
@@ -202,6 +204,8 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
         <template v-else-if="state === 'ready'">
           <template v-if="page === 'settings'">
             <WorkbookImport v-if="gateway" :gateway="gateway" :history="history" :history-state="historyState" :reload-history="reloadHistory" />
+            <CorrectDay v-if="gateway && historyState === 'ready' && history.records.length" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
+            <ChangeHistory v-if="gateway && historyState === 'ready' && history.imports.length" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
             <section class="section-card"><div class="section-heading"><div><div class="eyebrow">MAKE IT YOURS</div><h2>Display preferences</h2></div><span class="outline-pill">Saved to your account</span></div>
               <form @submit.prevent="save"><label class="field-label" for="density">Display density</label><p class="field-help">Choose how much space to leave between records.</p>
                 <select id="density" aria-label="Display density" v-model="draftDensity" :disabled="saving"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select>

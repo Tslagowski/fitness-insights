@@ -1,5 +1,5 @@
-import type { ImportedHistory } from '../gateway';
-import { dailyDomains, type DailyDomain, type DailyRecord, type DailyValues } from './workbook';
+import type { ImportedHistory, ImportSummary } from '../gateway';
+import { dailyDomains, domainLabels, type DailyDomain, type DailyRecord, type DailyValues } from './workbook';
 
 export interface RecordChange {
   date: string;
@@ -13,12 +13,16 @@ export interface ProposedChanges {
   changed: number;
   unchanged: number;
   corrections: RecordChange[];
+  /** Saved dates that this import does not represent; they stay exactly as they are. */
+  keptDates: number;
 }
 
 /** Compares a parsed import with the active shared history, using the same rule as the database commit. */
 export function proposeChanges(records: DailyRecord[], history: ImportedHistory): ProposedChanges {
   const active = new Map(history.records.map((record) => [`${record.date}|${record.domain}`, record.values]));
-  const result: ProposedChanges = { added: 0, changed: 0, unchanged: 0, corrections: [] };
+  const importedDates = new Set(records.map((record) => record.date));
+  const keptDates = new Set(history.records.map((record) => record.date).filter((date) => !importedDates.has(date))).size;
+  const result: ProposedChanges = { added: 0, changed: 0, unchanged: 0, corrections: [], keptDates };
   for (const record of records) {
     const existing = active.get(`${record.date}|${record.domain}`);
     if (!existing) result.added += 1;
@@ -90,4 +94,28 @@ export function formatCalendarDate(date: string, options: { weekday?: boolean } 
 export function formatValue(value: number | null | undefined, maximumFractionDigits = 2): string {
   if (value === null || value === undefined) return '—';
   return value.toLocaleString('en-US', { maximumFractionDigits });
+}
+
+/** One-line, plain-language description of a change-log entry. */
+export function describeChange(change: ImportSummary, all: ImportSummary[]): string {
+  if (change.kind === 'clear') {
+    return `Cleared ${change.clearedDomain ? domainLabels[change.clearedDomain] : 'a record'} on ${change.clearedDate ? formatCalendarDate(change.clearedDate) : 'a day'}`;
+  }
+  if (change.kind === 'undo') {
+    const target = all.find((item) => item.id === change.undoesId);
+    const what = target ? describeChange(target, all).replace(/^Imported/, 'the import of').replace(/^Cleared/, 'clearing') : 'an earlier change';
+    return `Undid ${what.replace(/:.*$/, '')}`;
+  }
+  const name = change.fileName ?? 'workbook';
+  if (change.outcome === 'unchanged') return `Imported ${name}: no changes`;
+  return `Imported ${name}: ${change.added} added, ${change.changed} corrected, ${change.unchanged} unchanged`;
+}
+
+export function describeCounts(counts: { added: number; changed: number; removed: number }): string {
+  const parts = [
+    counts.added ? `${counts.added} restored` : '',
+    counts.changed ? `${counts.changed} reverted to earlier values` : '',
+    counts.removed ? `${counts.removed} removed` : '',
+  ].filter(Boolean);
+  return parts.length ? parts.join(', ') : 'no record changes';
 }

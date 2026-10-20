@@ -1,28 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { expect, test } from 'vitest';
 import App from '../src/App.vue';
-import { defaultPreferences, emptyHistory, type Gateway, type Identity, type DisplayDensity } from '../src/gateway';
+import { defaultPreferences } from '../src/gateway';
+import { MemoryGateway } from './fixtures/memory-gateway';
 
-class MemoryGateway implements Gateway {
-  identity: Identity | null = { id: 'owner', name: 'Trevis' };
-  owner = true;
-  density: DisplayDensity = 'comfortable';
-  failSave = false;
-  listener = () => {};
-  async getIdentity() { return this.identity; }
-  async isOwner() { return this.owner; }
-  async loadPreferences() { return { ...defaultPreferences, displayDensity: this.density }; }
-  async savePreferences(_userId: string, density: DisplayDensity) {
-    if (this.failSave) throw new Error('Network unavailable');
-    this.density = density;
-    return this.loadPreferences();
-  }
-  async signIn() {}
-  async signOut() { this.identity = null; this.listener(); }
-  onIdentityChange(listener: () => void) { this.listener = listener; return () => { this.listener = () => {}; }; }
-  async loadHistory() { return { ...emptyHistory }; }
-  async commitImport(): Promise<never> { throw new Error('Imports are covered in import-ui.test.ts'); }
-}
 
 test('the owner saves density and sees the saved choice on a fresh app instance', async () => {
   const gateway = new MemoryGateway();

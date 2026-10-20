@@ -146,6 +146,19 @@ main:focus { outline: 0; }
 [data-density=compact] .daily-table th, [data-density=compact] .daily-table td { padding: 5px 10px; }
 .freshness { border-top: 1px solid #e6eadf; margin-top: 22px; padding-top: 18px; }
 .freshness h3 { font-size: 14px; }
+.correct-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 720px; }
+.correct-fields > div { display: flex; flex-direction: column; gap: 7px; }
+.correct-current { border-top: 1px solid #e6eadf; margin-top: 20px; padding-top: 16px; }
+.correct-current h3 { font-size: 13px; margin-bottom: 4px; }
+.confirm-box { background: #faf5ec; border: 1px solid #ecdcc1; border-radius: 8px; padding: 16px 18px; margin-top: 16px; font-size: 12px; line-height: 1.7; }
+.confirm-box .form-footer { border-top-color: #ecdcc1; margin-top: 14px; padding-top: 14px; }
+.undo-box { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #f3f6ee; border: 1px solid #e0e6d9; border-radius: 8px; padding: 14px 16px; }
+.undo-box > div { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.undo-box span { color: #62755b; font-size: 11px; }
+.change-log { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-direction: column; font-size: 11px; }
+.change-log li { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-top: 1px solid #eef1e9; }
+.change-log span { color: #62755b; }
+.change-log li.undone strong { color: #7d8a80; text-decoration: line-through; text-decoration-color: #b9c3b4; }
 @media (min-width: 1600px) {
   main { padding-top: 58px; }
   .welcome-content { padding: 55px; }
@@ -201,6 +214,8 @@ main:focus { outline: 0; }
   .empty-card h2 { font-size: 24px; }
   .outline-pill { white-space: normal; }
   .change-summary { grid-template-columns: 1fr; }
+  .correct-fields { grid-template-columns: 1fr; }
+  .undo-box { flex-direction: column; align-items: stretch; }
   .change-summary div { flex-direction: row; align-items: baseline; gap: 10px; padding: 10px 14px; }
   .change-count { font-size: 20px; }
   .form-footer { gap: 12px; }

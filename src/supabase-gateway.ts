@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  defaultPreferences, StaleRevisionError, type DisplayDensity, type Gateway, type ImportCommitRequest,
-  type ImportCommitResult, type ImportedHistory, type Preferences,
+  defaultPreferences, NothingToChangeError, StaleRevisionError, type ChangeKind, type ChangeResult, type DisplayDensity,
+  type Gateway, type ImportCommitRequest, type ImportCommitResult, type ImportedHistory, type Preferences, type UndoPreview,
 } from './gateway';
 import type { DailyDomain, DailyValues } from './import/workbook';
 
@@ -78,10 +78,7 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
         p_source: { sha256: request.file.sha256, file_name: request.file.name, byte_size: request.file.byteSize, media_type: request.file.mediaType },
         p_records: request.records.map((record) => ({ date: record.date, domain: record.domain, fields: record.values })),
       });
-      if (error) {
-        if (error.code === 'FI409') throw new StaleRevisionError(error.message);
-        throw error;
-      }
+      if (error) throw translateError(error);
       const result = data as Record<string, unknown>;
       return {
         outcome: result.outcome === 'changed' ? 'changed' : 'unchanged',
@@ -89,6 +86,32 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
         revisionId: typeof result.revision_id === 'number' ? result.revision_id : null,
         added: Number(result.added), changed: Number(result.changed), unchanged: Number(result.unchanged),
       };
+    },
+    async clearDay(request) {
+      const { data, error } = await client.rpc('clear_day', {
+        p_request_id: request.requestId, p_expected_revision_id: request.expectedRevisionId, p_date: request.date, p_domain: request.domain,
+      });
+      if (error) throw translateError(error);
+      return decodeChange(data);
+    },
+    async previewUndo(expectedRevisionId): Promise<UndoPreview> {
+      const { data, error } = await client.rpc('undo_last_change', { p_request_id: null, p_expected_revision_id: expectedRevisionId, p_dry_run: true });
+      if (error) throw translateError(error);
+      const preview = data as Record<string, unknown>;
+      return {
+        targetId: String(preview.target_batch_id),
+        targetKind: preview.target_kind as ChangeKind,
+        targetCommittedAt: String(preview.target_committed_at),
+        restoresRevisionId: typeof preview.restores_revision_id === 'number' ? preview.restores_revision_id : null,
+        added: Number(preview.added), changed: Number(preview.changed), removed: Number(preview.removed),
+        firstDate: (preview.first_date as string | null) ?? null,
+        lastDate: (preview.last_date as string | null) ?? null,
+      };
+    },
+    async undoLastChange(request) {
+      const { data, error } = await client.rpc('undo_last_change', { p_request_id: request.requestId, p_expected_revision_id: request.expectedRevisionId, p_dry_run: false });
+      if (error) throw translateError(error);
+      return decodeChange(data);
     },
     onIdentityChange(listener) {
       const pending = new Set<ReturnType<typeof setTimeout>>();
@@ -106,10 +129,27 @@ function isAlreadyStored(error: { message?: string; status?: number; statusCode?
   return error.status === 409 || error.statusCode === '409' || /already exists/i.test(error.message ?? '');
 }
 
+function translateError(error: { code?: string; message: string }): Error {
+  if (error.code === 'FI409') return new StaleRevisionError(error.message);
+  if (error.code === 'P0002') return new NothingToChangeError(error.message);
+  return Object.assign(new Error(error.message), { code: error.code });
+}
+
+function decodeChange(value: unknown): ChangeResult {
+  const result = value as Record<string, unknown>;
+  return {
+    outcome: result.outcome === 'changed' ? 'changed' : 'unchanged',
+    replayed: result.replayed === true,
+    revisionId: typeof result.revision_id === 'number' ? result.revision_id : null,
+    added: Number(result.added ?? 0), changed: Number(result.changed ?? 0), removed: Number(result.removed ?? 0),
+  };
+}
+
 function decodeHistory(value: unknown): ImportedHistory {
-  const history = value as { revision_id: number | null; records: Array<Record<string, unknown>>; imports: Array<Record<string, unknown>> };
+  const history = value as { revision_id: number | null; records: Array<Record<string, unknown>>; imports: Array<Record<string, unknown>>; undo_target_id?: string | null };
   return {
     revisionId: history.revision_id ?? null,
+    undoTargetId: history.undo_target_id ?? null,
     records: history.records.map((record) => ({
       date: String(record.date),
       domain: record.domain as DailyDomain,
@@ -119,14 +159,20 @@ function decodeHistory(value: unknown): ImportedHistory {
     })),
     imports: history.imports.map((item) => ({
       id: String(item.id),
+      kind: (item.kind as ChangeKind | undefined) ?? 'workbook',
+      removed: Number(item.removed ?? 0),
+      clearedDate: (item.cleared_date as string | null) ?? null,
+      clearedDomain: (item.cleared_domain as DailyDomain | null) ?? null,
+      undoesId: (item.undoes_batch_id as string | null) ?? null,
+      undone: item.undone === true,
       committedAt: String(item.committed_at),
       outcome: item.outcome === 'changed' ? 'changed' : 'unchanged',
       revisionId: typeof item.revision_id === 'number' ? item.revision_id : null,
       added: Number(item.added), changed: Number(item.changed), unchanged: Number(item.unchanged),
       firstDate: (item.first_date as string | null) ?? null,
       lastDate: (item.last_date as string | null) ?? null,
-      fileName: String(item.file_name),
-      byteSize: Number(item.byte_size),
+      fileName: (item.file_name as string | null) ?? null,
+      byteSize: typeof item.byte_size === 'number' ? item.byte_size : null,
     })),
   };
 }
