@@ -203,7 +203,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 
 | Ticket | Deliverable | Status at consolidation |
 | --- | --- | --- |
-| 01 | Owner sign-in, private preference, navigation | Code complete locally; hosted verification pending |
+| 01 | Owner sign-in, private preference, navigation | Done; live verified 2026-10-19 |
 | 02 | Workbook daily-history import | Pending |
 | 03 | Historical corrections and undo | Pending |
 | 04 | Detailed food import without double-counting | Pending |

@@ -1,6 +1,6 @@
 # Fitness Insights
 
-A personal Vue/TypeScript/Vite workspace for nutrition and training analysis. This implementation covers ticket 01: GitHub sign-in, owner-only preference storage, responsive navigation, and honest empty states. Data imports and analytics are not implemented yet.
+A personal Vue/TypeScript/Vite workspace for nutrition and training analysis. This implementation covers ticket 01: GitHub sign-in, owner-only preference storage, responsive navigation, and honest empty states. It is live at https://tslagowski.github.io/fitness-insights/ (verified 2026-10-19). Data imports and analytics are not implemented yet.
 
 ## Run locally
 
@@ -59,7 +59,7 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 - `src/supabase-gateway.ts`: OAuth and preference transport.
 - `supabase/migrations`: owner allowlist and row-level access rules.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; ticket 01 is the active slice.
+- `tickets`: approved work and blocking dependencies; ticket 01 is done; ticket 02 is next.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.
@@ -70,7 +70,7 @@ Dependencies are pinned with a lockfile. TypeScript is pinned to a version compa
 - [Supabase row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
 - [Vite static deployment](https://vite.dev/guide/static-deploy.html#github-pages)
 
-Live setup requires the owner's GitHub repository, Supabase project, and OAuth configuration. The application source is published at https://github.com/Tslagowski/fitness-insights. No live app or Supabase service has been provisioned or verified by this implementation.
+Live setup requires the owner's GitHub repository, Supabase project, and OAuth configuration. The application source is published at https://github.com/Tslagowski/fitness-insights. The Supabase Free project and Pages deployment were provisioned and verified on 2026-10-19; see the ticket 01 evidence.
 
 ## Continue development on the MacBook
 
@@ -99,4 +99,10 @@ deploy/macos/install_dev_server.sh uninstall  # remove it
 tail -f .logs/dev-server.log                  # server output
 ```
 
-Stop any `npm run dev` Terminal session first; the script refuses to start if port 5173 is taken. It pins your nvm Node 24 binary, runs `npm ci` when dependencies are missing or stale, and prints the Tailscale link for your iPhone (install Tailscale on both devices, same account). Keep the Mac awake while plugged in. If file edits don't appear on refresh, reinstall with `POLLING=1 deploy/macos/install_dev_server.sh`. GitHub sign-in from the phone will likely need an HTTPS origin (for example free Tailscale Serve) added to Supabase's allowed redirect URLs. This is a development convenience only; it does not change the GitHub Pages plus Supabase Free hosting.
+Stop any `npm run dev` Terminal session first; the script refuses to start if port 5173 is taken. It pins your nvm Node 24 binary, runs `npm ci` when dependencies are missing or stale, and prints the Tailscale link for your iPhone (install Tailscale on both devices, same account). Keep the Mac awake while plugged in. If file edits don't appear on refresh, reinstall with `POLLING=1 deploy/macos/install_dev_server.sh`. For GitHub sign-in from the phone, give the dev server an HTTPS hostname with free Tailscale Serve (enable MagicDNS and HTTPS Certificates in the Tailscale admin DNS page first):
+
+```bash
+/Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg 5173   # prints https://<host>.<tailnet>.ts.net/
+```
+
+Add that exact `https://…ts.net/` address (trailing slash) to Supabase's redirect URLs. Do not use a bare `http://100.x.y.z:5173/` address: Supabase's firewall blocks sign-in redirects to raw IP addresses. This is a development convenience only; it does not change the GitHub Pages plus Supabase Free hosting.
