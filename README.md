@@ -88,3 +88,15 @@ npm run dev
 Use Node 24. If the target folder already exists, inspect it before cloning or replacing anything. The app shows a setup screen until Supabase is configured; that is expected. Developing on this Mac does not require hosting the production app there. GitHub Pages and Supabase remain the selected hosting architecture.
 
 The initial remote snapshot incorporates local source commit `e091c6e` plus the specification and handoff documentation. Prior local commits were packaged as a source snapshot rather than transplanted into this repository's history.
+
+### Keep the dev server running for phone access
+
+To work from your phone while the Mac stays at home, run the dev server as a launchd service instead of an open Terminal window:
+
+```bash
+deploy/macos/install_dev_server.sh            # install/update; starts at login, restarts if it exits
+deploy/macos/install_dev_server.sh uninstall  # remove it
+tail -f .logs/dev-server.log                  # server output
+```
+
+Stop any `npm run dev` Terminal session first; the script refuses to start if port 5173 is taken. It pins your nvm Node 24 binary, runs `npm ci` when dependencies are missing or stale, and prints the Tailscale link for your iPhone (install Tailscale on both devices, same account). Keep the Mac awake while plugged in. If file edits don't appear on refresh, reinstall with `POLLING=1 deploy/macos/install_dev_server.sh`. GitHub sign-in from the phone will likely need an HTTPS origin (for example free Tailscale Serve) added to Supabase's allowed redirect URLs. This is a development convenience only; it does not change the GitHub Pages plus Supabase Free hosting.

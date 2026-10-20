@@ -8,3 +8,4 @@ test-results/
 *.xlsx
 *.csv
 *.zip
+.logs/
