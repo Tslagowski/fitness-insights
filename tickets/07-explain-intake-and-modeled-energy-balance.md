@@ -1,6 +1,6 @@
 # 07: Explain intake and modeled energy balance
 
-**Status:** in-progress (implemented 2026-10-20; owner review on the hosted app pending)
+**Status:** in-progress (deployed 2026-10-20: Check 39480080217, Deploy 39480263790; owner review on the hosted app pending)
 
 **What to build:** Use Nutrition & Weight to compare intake distributions, targets, and estimated expenditure over seven-day, 28-day, or custom periods, opening the actual dates behind each metric.
 
