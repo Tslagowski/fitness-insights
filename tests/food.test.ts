@@ -59,9 +59,9 @@ describe('food records', () => {
     expect(plan.food!.overriddenWorkbookDates).toEqual(['2026-09-02']);
   });
 
-  test('rejects workout CSVs, unknown files, and duplicate sources with guidance', () => {
+  test('rejects incomplete or unknown files and duplicate sources with guidance', () => {
     const workout = strToU8('Date,Workout,Exercise,Set Type,Weight (lb),Reps\n2026-09-01,Push,Bench,Standard Set,135,8\n');
-    expect(() => planImport([{ name: 'w.csv', bytes: workout }])).toThrow(/workout CSV/);
+    expect(() => planImport([{ name: 'w.csv', bytes: workout }])).toThrow(/w\.csv is not a recognized MacroFactor export/);
     expect(() => planImport([{ name: 'x.csv', bytes: strToU8('a,b\n1,2\n') }])).toThrow(/not a recognized MacroFactor export/);
     const csv = foodCsv([foodRow('2026-09-01', '8:00 AM', 'Tea', {})]);
     expect(() => planImport([{ name: 'a.csv', bytes: csv }, { name: 'b.csv', bytes: csv }])).toThrow(/More than one food CSV/);

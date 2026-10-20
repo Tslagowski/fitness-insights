@@ -101,7 +101,7 @@ export function formatValue(value: number | null | undefined, maximumFractionDig
   return value.toLocaleString('en-US', { maximumFractionDigits });
 }
 
-export const clearableLabels: Record<ClearableDomain, string> = { ...domainLabels, food_entries: 'Food entries' };
+export const clearableLabels: Record<ClearableDomain, string> = { ...domainLabels, food_entries: 'Food entries', workout_sets: 'Workout sets' };
 
 /** One-line, plain-language description of a change-log entry. */
 export function describeChange(change: ImportSummary, all: ImportSummary[]): string {
@@ -119,6 +119,9 @@ export function describeChange(change: ImportSummary, all: ImportSummary[]): str
   if (change.added + change.changed + change.unchanged > 0) parts.push(`${change.added} added, ${change.changed} corrected, ${change.unchanged} unchanged`);
   if (change.foodAdded + change.foodChanged + change.foodUnchanged + change.foodKept > 0) {
     parts.push(`food days ${change.foodAdded} added, ${change.foodChanged} replaced, ${change.foodUnchanged} unchanged${change.foodKept ? `, ${change.foodKept} kept from the food CSV` : ''}`);
+  }
+  if (change.workoutAdded + change.workoutChanged + change.workoutUnchanged + change.workoutKept > 0) {
+    parts.push(`workout days ${change.workoutAdded} added, ${change.workoutChanged} replaced, ${change.workoutUnchanged} unchanged${change.workoutKept ? `, ${change.workoutKept} kept from the workout CSV` : ''}`);
   }
   return `Imported ${name}: ${parts.join('; ')}`;
 }

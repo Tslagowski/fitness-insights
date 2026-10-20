@@ -57,11 +57,11 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 
 - `src/App.vue`: account lifecycle, navigation, settings, empty states.
 - `src/supabase-gateway.ts`: OAuth, preference, archive upload, and import transport.
-- `src/import/`: workbook reading (`xlsx.ts`), CSV reading (`csv.ts`), MacroFactor daily records (`workbook.ts`), food entries (`food.ts`), multi-file import plans (`sources.ts`), and preview helpers (`preview.ts`).
-- `src/components/`: the import panel, daily history table, food log, Correct a day panel, and change history with Undo.
+- `src/import/`: workbook reading (`xlsx.ts`), CSV reading (`csv.ts`), MacroFactor daily records (`workbook.ts`), food entries (`food.ts`), workout sets and sessions (`workout.ts`), multi-file import plans (`sources.ts`), and preview helpers (`preview.ts`).
+- `src/components/`: the import panel, daily history table, food log, training log with exercise aliases, Correct a day panel, and change history with Undo.
 - `supabase/migrations`: owner allowlist, row-level access rules, revisioned daily history with the atomic `commit_import` function, and the private source archive bucket.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is in progress.
+- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is implemented and awaiting live verification.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.
@@ -153,4 +153,15 @@ Choose the workbook, the food CSV, or both in one import. Files are recognized b
 - **Reconciliation:** on dates an import touches, a difference between the detail calorie sum and the workbook total above max(5 kcal, 1%) is listed in the preview. `commit_sources` refuses the import (`FI422`) until the owner accepts the food detail as the source; accepted differences are stored with the change.
 - **Planned entries:** food dated after today (America/Denver) is saved and labeled Planned, not treated as eaten. Completed-day eligibility arrives in ticket 06.
 - `commit_sources` handles one workbook and/or one food CSV atomically with the same stale-preview check and retry-safe request id as before, plus a dry run used by the preview. Raw CSVs are archived privately under `food-csv/`. Clearing (`food_entries`) and Undo cover food days. Nutrition & Weight shows intake with its source and a food log whose entries load per day.
+
+## Workouts (ticket 05)
+
+The import also accepts the MacroFactor workout CSV (alone or with the other files), and the workbook's Workout Log sheet. Each date's sets are saved as one workout day, exactly as logged and in source order, keeping legitimately identical sets.
+
+- **Logging conventions are preserved:** `Weight (lb)` stays as logged (dumbbells per hand; never doubled), `Reps` as logged (per side for unilateral movements), negative weight is machine assistance, blank load/reps/RIR stay not recorded, timed sets keep `Duration`, and `Exercise Base Weight (lb)` is shown as metadata and never added to the load.
+- **Precedence:** the workout CSV is authoritative for any date it covers; the workbook Workout Log fills dates without CSV detail and never replaces saved CSV detail. Dates absent from an import are untouched.
+- **Sessions** are grouped by date, workout name, and workout duration (the export has no session ID, so identical same-day sessions appear as one, as disclosed in the app). Session duration is the logged value, never a sum across sets.
+- **Durations** keep raw values; the app reads them as seconds by default, a provisional, owner-changeable setting (Imports & Settings) shown as unverified until one session is checked against MacroFactor (release gate in ticket 14).
+- **Exercise names** stay separate; an owner-chosen display alias (`exercise_aliases`) can group a rename or a superset label (for example "Hack Squat ∈ SS1") without changing raw records, and can be removed.
+- Workout import, clearing (`workout_sets`), reimport, and Undo use the same revisioned workflow as daily and food records. Raw workout CSVs are archived privately under `workout-csv/`.
 

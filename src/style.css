@@ -174,6 +174,20 @@ main:focus { outline: 0; }
 .food-day-totals { font-size: 12px; font-variant-numeric: tabular-nums; }
 .food-entries { padding: 0 4px 14px; }
 .daily-table .food-name { text-align: left; white-space: normal; min-width: 160px; }
+.training-notes { margin: 0 0 8px; }
+.training-notes span { color: #5b6e57; }
+.workout-session { border-top: 1px solid #eef1e9; padding-top: 12px; margin-top: 8px; }
+.workout-session h3 { font-size: 13px; }
+.workout-exercise { margin-top: 12px; }
+.workout-exercise h4 { font-size: 12px; font-weight: 600; margin: 0; }
+.text-input { background: white; border: 1px solid #b7c6ad; border-radius: 5px; padding: 10px 12px; width: 100%; max-width: 350px; font-size: 12px; color: #2c4834; min-height: 40px; }
+.text-input:focus-visible { outline: 3px solid #be783f; outline-offset: 2px; }
+#name-filter { display: block; margin: 7px 0 12px; }
+.alias-list { list-style: none; padding: 0; margin: 0; max-height: 640px; overflow-y: auto; }
+.alias-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 8px 16px; align-items: center; padding: 10px 0; border-top: 1px solid #eef1e9; font-size: 12px; }
+.alias-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.alias-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.alias-edit .text-input { flex: 1 1 180px; }
 @media (min-width: 1600px) {
   main { padding-top: 58px; }
   .welcome-content { padding: 55px; }
@@ -231,6 +245,7 @@ main:focus { outline: 0; }
   .change-summary { grid-template-columns: 1fr; }
   .correct-fields { grid-template-columns: 1fr; }
   .food-day-toggle { grid-template-columns: 1fr; }
+  .alias-list li { grid-template-columns: 1fr; }
   .food-day-toggle .muted { grid-column: 1; }
   .undo-box { flex-direction: column; align-items: stretch; }
   .change-summary div { flex-direction: row; align-items: baseline; gap: 10px; padding: 10px 14px; }

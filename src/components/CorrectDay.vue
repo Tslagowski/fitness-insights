@@ -2,11 +2,11 @@
 import { computed, ref, watch } from 'vue';
 import { NothingToChangeError, StaleRevisionError, type ClearableDomain, type Gateway, type ImportedHistory } from '../gateway';
 import { dailyDomains } from '../import/workbook';
-import { clearableLabels, formatCalendarDate, formatValue, newRequestId } from '../import/preview';
+import { clearableLabels, formatCalendarDate, formatValue, newRequestId, plural } from '../import/preview';
 
 const props = defineProps<{ gateway: Gateway; history: ImportedHistory; reloadHistory: () => Promise<boolean> }>();
 
-const dates = computed(() => [...new Set([...props.history.records.map((record) => record.date), ...props.history.foodDays.map((day) => day.date)])].sort().reverse());
+const dates = computed(() => [...new Set([...props.history.records.map((record) => record.date), ...props.history.foodDays.map((day) => day.date), ...props.history.workoutDays.map((day) => day.date)])].sort().reverse());
 const selectedDate = ref('');
 const selectedDomain = ref<ClearableDomain | ''>('');
 const confirming = ref(false);
@@ -16,9 +16,11 @@ const problem = ref('');
 const outcome = ref('');
 
 const foodDay = computed(() => props.history.foodDays.find((day) => day.date === selectedDate.value) ?? null);
+const workoutDay = computed(() => props.history.workoutDays.find((day) => day.date === selectedDate.value) ?? null);
 const domainsOnDate = computed<ClearableDomain[]>(() => [
   ...dailyDomains.filter((domain) => props.history.records.some((record) => record.date === selectedDate.value && record.domain === domain)),
   ...(foodDay.value ? ['food_entries' as const] : []),
+  ...(workoutDay.value ? ['workout_sets' as const] : []),
 ]);
 /** The saved item to clear: a daily record, or the date's food entries summarized as values. */
 const record = computed(() => {
@@ -27,11 +29,15 @@ const record = computed(() => {
     const day = foodDay.value;
     return day ? { date: day.date, domain: 'food_entries' as ClearableDomain, values: { Entries: day.entries, 'Calories (kcal)': day.calories, 'Protein (g)': day.protein } as Record<string, number | null> } : null;
   }
+  if (selectedDomain.value === 'workout_sets') {
+    const day = workoutDay.value;
+    return day ? { date: day.date, domain: 'workout_sets' as ClearableDomain, values: { Sets: day.sets, Exercises: day.exercises } as Record<string, number | null> } : null;
+  }
   const found = props.history.records.find((item) => item.date === selectedDate.value && item.domain === selectedDomain.value);
   return found ? { date: found.date, domain: found.domain as ClearableDomain, values: found.values } : null;
 });
 const recordedValues = computed(() => Object.entries(record.value?.values ?? {}).filter(([, value]) => value !== null));
-const blankCount = computed(() => (selectedDomain.value === 'food_entries' ? 0 : Object.values(record.value?.values ?? {}).filter((value) => value === null).length));
+const blankCount = computed(() => (selectedDomain.value === 'food_entries' || selectedDomain.value === 'workout_sets' ? 0 : Object.values(record.value?.values ?? {}).filter((value) => value === null).length));
 
 watch(selectedDate, () => { selectedDomain.value = ''; reset(); });
 watch(selectedDomain, reset);
@@ -98,7 +104,8 @@ async function clear() {
       <div v-if="!confirming" class="form-footer"><span class="muted">You'll confirm on the next step.</span>
         <button class="primary-button" type="button" @click="review">Review clearing</button></div>
       <div v-else class="confirm-box" role="group" aria-label="Confirm clearing">
-        <p v-if="record.domain === 'food_entries'">Remove all <strong>{{ foodDay?.entries }} food entries</strong> for <strong>{{ formatCalendarDate(record.date) }}</strong>? Daily intake for that date falls back to the workbook total, if any. The day's other data stays. This creates a new version you can undo.</p>
+        <p v-if="record.domain === 'food_entries'">Remove <strong>{{ plural(foodDay?.entries ?? 0, 'food entry', 'food entries') }}</strong> for <strong>{{ formatCalendarDate(record.date) }}</strong>? Daily intake for that date falls back to the workbook total, if any. The day's other data stays. This creates a new version you can undo.</p>
+        <p v-else-if="record.domain === 'workout_sets'">Remove <strong>{{ plural(workoutDay?.sets ?? 0, 'workout set') }}</strong> for <strong>{{ formatCalendarDate(record.date) }}</strong>? The day's other data stays. This creates a new version you can undo.</p>
         <p v-else>Remove <strong>{{ clearableLabels[record.domain] }}</strong> for <strong>{{ formatCalendarDate(record.date) }}</strong> ({{ recordedValues.length }} recorded {{ recordedValues.length === 1 ? 'value' : 'values' }})? The day's other data stays. This creates a new version you can undo.</p>
         <div class="form-footer"><button class="text-button" type="button" @click="reset" :disabled="saving">Cancel</button>
           <button class="primary-button" type="button" @click="clear" :disabled="saving">{{ saving ? 'Clearing...' : 'Clear this data' }}</button></div>

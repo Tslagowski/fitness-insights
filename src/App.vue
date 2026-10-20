@@ -3,6 +3,8 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { defaultPreferences, emptyHistory, type DisplayDensity, type Gateway, type Identity, type ImportedHistory, type Preferences } from './gateway';
 import ImportPanel from './components/ImportPanel.vue';
 import FoodLog from './components/FoodLog.vue';
+import TrainingLog from './components/TrainingLog.vue';
+import type { DurationUnit } from './import/workout';
 import DailyTable from './components/DailyTable.vue';
 import CorrectDay from './components/CorrectDay.vue';
 import ChangeHistory from './components/ChangeHistory.vue';
@@ -21,6 +23,7 @@ const state = ref<'setup' | 'loading' | 'signed-out' | 'denied' | 'error' | 'rea
 const identity = ref<Identity | null>(null);
 const preferences = ref<Preferences>({ ...defaultPreferences });
 const draftDensity = ref<DisplayDensity>('comfortable');
+const draftDurationUnit = ref<DurationUnit>('seconds');
 const notice = ref('');
 const error = ref('');
 const saving = ref(false);
@@ -29,8 +32,8 @@ const signingOut = ref(false);
 const signOutRequired = ref(false);
 const history = ref<ImportedHistory>({ ...emptyHistory });
 const historyState = ref<'loading' | 'ready' | 'error'>('loading');
-const historyDates = computed(() => [...new Set([...history.value.records.map((record) => record.date), ...history.value.foodDays.map((day) => day.date)])].sort());
-const hasHistory = computed(() => history.value.records.length > 0 || history.value.foodDays.length > 0);
+const historyDates = computed(() => [...new Set([...history.value.records.map((record) => record.date), ...history.value.foodDays.map((day) => day.date), ...history.value.workoutDays.map((day) => day.date)])].sort());
+const hasHistory = computed(() => history.value.records.length > 0 || history.value.foodDays.length > 0 || history.value.workoutDays.length > 0);
 let revision = 0;
 let unsubscribe = () => {};
 
@@ -65,6 +68,7 @@ async function refreshIdentity() {
     if (currentRevision !== revision) return;
     preferences.value = savedPreferences;
     draftDensity.value = savedPreferences.displayDensity;
+    draftDurationUnit.value = savedPreferences.durationUnit;
     state.value = 'ready';
     void reloadHistory();
   } catch {
@@ -124,7 +128,7 @@ async function save() {
   error.value = '';
   notice.value = '';
   try {
-    const saved = await props.gateway.savePreferences(identity.value.id, draftDensity.value);
+    const saved = await props.gateway.savePreferences(identity.value.id, { displayDensity: draftDensity.value, durationUnit: draftDurationUnit.value });
     if (currentRevision !== revision) return;
     preferences.value = saved;
     notice.value = 'Preference saved. It will be available when you open another device.';
@@ -212,12 +216,15 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
               <form @submit.prevent="save"><label class="field-label" for="density">Display density</label><p class="field-help">Choose how much space to leave between records.</p>
                 <select id="density" aria-label="Display density" v-model="draftDensity" :disabled="saving"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select>
                 <div class="density-preview" aria-hidden="true"><span></span><span></span><span></span></div>
+                <label class="field-label" for="duration-unit">Workout duration values</label>
+                <p class="field-help">MacroFactor exports durations without a unit. They are read as seconds by default; this is a provisional assumption until one workout is checked against the app. Raw values are always kept.</p>
+                <select id="duration-unit" aria-label="Workout duration unit" v-model="draftDurationUnit" :disabled="saving"><option value="seconds">Seconds (provisional default)</option><option value="minutes">Minutes</option></select>
                 <div class="form-footer"><span class="muted">Applies after saving.</span><button class="primary-button" type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save preference' }}</button></div>
               </form>
             </section>
             <section class="section-card"><div class="eyebrow">CONSISTENT ACROSS DEVICES</div><h2>Reporting calendar</h2><dl class="calendar-details"><div><dt>Time zone</dt><dd>America/Denver</dd></div><div><dt>Week starts</dt><dd>Monday</dd></div></dl></section>
           </template>
-          <template v-else-if="page === 'nutrition' && hasHistory">
+          <template v-else-if="page === 'nutrition' && (history.records.length || history.foodDays.length)">
             <section class="section-card"><div class="section-heading"><div><div class="eyebrow">IMPORTED DAILY HISTORY</div><h2>Daily records</h2></div>
               <span class="outline-pill">Version {{ history.revisionId }}</span></div>
               <p class="field-help">{{ historyDates.length }} dates, {{ formatCalendarDate(historyDates[0]) }} – {{ formatCalendarDate(historyDates[historyDates.length - 1]) }}.
@@ -226,12 +233,13 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             </section>
             <FoodLog v-if="gateway && history.foodDays.length" :gateway="gateway" :food-days="history.foodDays" :today="reportingToday()" />
           </template>
+          <TrainingLog v-else-if="page === 'training' && gateway && history.workoutDays.length" :gateway="gateway" :history="history" :duration-unit="preferences.durationUnit" :today="reportingToday()" :reload-history="reloadHistory" />
           <section v-else-if="page === 'nutrition' && historyState === 'error'" class="empty-card"><h2>Your saved history could not be loaded.</h2><p>Nothing has been changed. If the free service is paused, resume the project and retry.</p><button class="primary-button" @click="reloadHistory">Try again</button></section>
           <section v-else class="empty-card data-empty"><div class="empty-mark" aria-hidden="true"><span></span><span></span><span></span></div>
             <div class="eyebrow">YOUR STARTING POINT</div>
             <h2>{{ page === 'training' ? 'Your training story starts here.' : page === 'nutrition' ? 'Room for the whole picture.' : `Welcome to your workspace, ${identity?.name}.` }}</h2>
-            <p>{{ page === 'training' ? 'No workout history has been imported. Exercise progress will appear here once workout imports are available.' : page === 'nutrition' ? 'No nutrition or weight history has been imported yet. Import a MacroFactor workbook to see your daily records here.' : hasHistory ? `Your saved history covers ${historyDates.length} dates through ${formatCalendarDate(historyDates[historyDates.length - 1])}. Written findings arrive in a later update.` : 'Your account is connected. Import a MacroFactor workbook to start building your history.' }}</p>
-            <a class="primary-button" href="#settings" @click="navigate('settings')">{{ page === 'training' ? 'Open settings' : 'Open imports' }} <span aria-hidden="true">&rarr;</span></a>
+            <p>{{ page === 'training' ? 'No workout history has been imported yet. Import the MacroFactor workout CSV or workbook to see your sessions and sets here.' : page === 'nutrition' ? 'No nutrition or weight history has been imported yet. Import a MacroFactor workbook to see your daily records here.' : hasHistory ? `Your saved history covers ${historyDates.length} dates through ${formatCalendarDate(historyDates[historyDates.length - 1])}. Written findings arrive in a later update.` : 'Your account is connected. Import a MacroFactor workbook to start building your history.' }}</p>
+            <a class="primary-button" href="#settings" @click="navigate('settings')">Open imports <span aria-hidden="true">&rarr;</span></a>
           </section>
         </template>
 
@@ -240,7 +248,6 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
           <article><span class="feature-number">02 / TRAINING</span><h3>Follow your progress.</h3><p>Exercise history with the details that matter.</p></article>
           <article><span class="feature-number">03 / UNDERSTANDING</span><h3>Know what changed.</h3><p>Clear summaries supported by your records.</p></article>
         </section>
-        <section v-if="state === 'ready' && page === 'settings'" class="import-note"><div><h3>Workout details</h3><p>Workout CSV imports are coming in the next implementation ticket.</p></div><span class="outline-pill">Not available yet</span></section>
         <footer class="page-footer"><span>FITNESS INSIGHTS</span><span>Personal analytics, built around your history.</span></footer>
       </main>
     </div>

@@ -1,6 +1,7 @@
 import type { DailyDomain, DailyRecord } from './import/workbook';
 import type { FoodDay, FoodEntry, FoodSource } from './import/food';
 import type { SourceKind } from './import/sources';
+import type { DurationUnit, WorkoutDay, WorkoutSet, WorkoutSource } from './import/workout';
 
 export type DisplayDensity = 'comfortable' | 'compact';
 
@@ -13,13 +14,17 @@ export interface Preferences {
   displayDensity: DisplayDensity;
   timezone: 'America/Denver';
   weekStartsOn: 1;
+  /** Provisional interpretation of exported duration values (unverified against the source app). */
+  durationUnit: DurationUnit;
 }
+
+export type PreferenceChanges = Partial<Pick<Preferences, 'displayDensity' | 'durationUnit'>>;
 
 export interface Gateway {
   getIdentity(): Promise<Identity | null>;
   isOwner(): Promise<boolean>;
   loadPreferences(userId: string): Promise<Preferences>;
-  savePreferences(userId: string, density: DisplayDensity): Promise<Preferences>;
+  savePreferences(userId: string, changes: PreferenceChanges): Promise<Preferences>;
   signIn(): Promise<void>;
   signOut(): Promise<void>;
   onIdentityChange(listener: () => void): () => void;
@@ -27,6 +32,10 @@ export interface Gateway {
   loadHistory(): Promise<ImportedHistory>;
   /** The saved entries of one food day, or null if none. */
   loadFoodDay(date: string): Promise<SavedFoodDay | null>;
+  /** The saved sets of one workout day, or null if none. */
+  loadWorkoutDay(date: string): Promise<SavedWorkoutDay | null>;
+  /** Sets (or, with null, removes) the cosmetic display name for a logged exercise name. Raw records are unchanged. */
+  saveExerciseAlias(sourceName: string, displayName: string | null): Promise<void>;
   /** Compares an import with saved history on the server (food detail and reconciliation) without changing anything. */
   previewSources(request: SourcesRequest): Promise<SourcesPreview>;
   /** Archives the raw files privately, then atomically commits the import. Safe to retry with the same request id. */
@@ -39,7 +48,7 @@ export interface Gateway {
   undoLastChange(request: { requestId: string; expectedRevisionId: number | null }): Promise<ChangeResult>;
 }
 
-export type ClearableDomain = DailyDomain | 'food_entries';
+export type ClearableDomain = DailyDomain | 'food_entries' | 'workout_sets';
 
 export interface ClearDayRequest {
   requestId: string;
@@ -85,6 +94,7 @@ export interface SourcesRequest {
   sources: SourceFile[];
   daily: DailyRecord[];
   food: FoodDay[];
+  workouts: WorkoutDay[];
 }
 
 export interface SourcesCommitRequest extends SourcesRequest {
@@ -106,6 +116,11 @@ export interface FoodCounts {
   foodUnchanged: number;
   /** Workbook Food Log days not applied because saved food CSV detail has precedence. */
   foodKept: number;
+  workoutAdded: number;
+  workoutChanged: number;
+  workoutUnchanged: number;
+  /** Workbook Workout Log days not applied because saved workout CSV detail has precedence. */
+  workoutKept: number;
 }
 
 export interface SourcesPreview extends FoodCounts {
@@ -115,6 +130,8 @@ export interface SourcesPreview extends FoodCounts {
   unchanged: number;
   keptDates: string[];
   changedFoodDates: string[];
+  keptWorkoutDates: string[];
+  changedWorkoutDates: string[];
   conflicts: CalorieConflict[];
 }
 
@@ -153,6 +170,31 @@ export interface SavedFoodDay {
   revisionId: number;
 }
 
+export interface WorkoutDaySummary {
+  date: string;
+  source: WorkoutSource;
+  sets: number;
+  exercises: number;
+  /** Distinct workout names logged that day. */
+  workouts: string[];
+  /** Distinct raw "Workout Duration" values (unit unverified). */
+  durations: number[];
+  revisionId: number;
+}
+
+export interface SavedWorkoutDay {
+  date: string;
+  source: WorkoutSource;
+  sets: WorkoutSet[];
+  revisionId: number;
+}
+
+export interface ExerciseName {
+  name: string;
+  sets: number;
+  days: number;
+}
+
 export interface ImportSummary extends FoodCounts {
   id: string;
   kind: ChangeKind;
@@ -179,6 +221,11 @@ export interface ImportedHistory {
   revisionId: number | null;
   records: StoredDailyRecord[];
   foodDays: FoodDaySummary[];
+  workoutDays: WorkoutDaySummary[];
+  /** Every logged exercise name with its set and day counts. */
+  exerciseNames: ExerciseName[];
+  /** Logged exercise name -> owner-chosen display name. */
+  aliases: Record<string, string>;
   imports: ImportSummary[];
   /** The change Undo would revert next, if any. */
   undoTargetId: string | null;
@@ -193,10 +240,11 @@ export class NothingToChangeError extends Error {}
 /** Food detail and workbook totals disagree beyond the tolerance and the owner has not accepted the source winner. */
 export class ReconciliationRequiredError extends Error {}
 
-export const emptyHistory: ImportedHistory = { revisionId: null, records: [], foodDays: [], imports: [], undoTargetId: null };
+export const emptyHistory: ImportedHistory = { revisionId: null, records: [], foodDays: [], workoutDays: [], exerciseNames: [], aliases: {}, imports: [], undoTargetId: null };
 
 export const defaultPreferences: Preferences = {
   displayDensity: 'comfortable',
   timezone: 'America/Denver',
   weekStartsOn: 1,
+  durationUnit: 'seconds',
 };

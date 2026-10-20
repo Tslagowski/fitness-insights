@@ -2,20 +2,21 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
   defaultPreferences, NothingToChangeError, ReconciliationRequiredError, StaleRevisionError, type CalorieConflict, type ChangeKind,
   type ChangeResult, type ClearableDomain, type DisplayDensity, type FoodCounts, type Gateway, type ImportedHistory, type Preferences,
-  type SavedFoodDay, type SourceFile, type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview,
+  type SavedFoodDay, type SavedWorkoutDay, type SourceFile, type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview,
 } from './gateway';
 import type { DailyDomain, DailyValues } from './import/workbook';
 import type { FoodEntry, FoodSource } from './import/food';
+import type { WorkoutSet, WorkoutSource } from './import/workout';
 
 const archiveBucket = 'source-archives';
 
 function decodePreferences(value: unknown): Preferences {
   const record = value as Record<string, unknown> | null;
   if (!record || !['compact', 'comfortable'].includes(String(record.display_density)) ||
-      record.timezone !== 'America/Denver' || record.week_starts_on !== 1) {
+      record.timezone !== 'America/Denver' || record.week_starts_on !== 1 || !['seconds', 'minutes', undefined].includes(record.duration_unit as string | undefined)) {
     throw new Error('Unsupported saved preference values.');
   }
-  return { displayDensity: record.display_density as DisplayDensity, timezone: 'America/Denver', weekStartsOn: 1 };
+  return { displayDensity: record.display_density as DisplayDensity, timezone: 'America/Denver', weekStartsOn: 1, durationUnit: record.duration_unit === 'minutes' ? 'minutes' : 'seconds' };
 }
 
 export function createGateway(url: string, publishableKey: string, redirectUrl: string): Gateway {
@@ -41,14 +42,17 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
     },
     async loadPreferences(userId) {
       const { data, error } = await client.from('preferences')
-        .select('display_density,timezone,week_starts_on').eq('user_id', userId).maybeSingle();
+        .select('display_density,timezone,week_starts_on,duration_unit').eq('user_id', userId).maybeSingle();
       if (error) throw error;
       return data ? decodePreferences(data) : { ...defaultPreferences };
     },
-    async savePreferences(userId, density) {
+    async savePreferences(userId, changes) {
+      const row: Record<string, string> = { user_id: userId };
+      if (changes.displayDensity) row.display_density = changes.displayDensity;
+      if (changes.durationUnit) row.duration_unit = changes.durationUnit;
       const { data, error } = await client.from('preferences')
-        .upsert({ user_id: userId, display_density: density }, { onConflict: 'user_id' })
-        .select('display_density,timezone,week_starts_on').single();
+        .upsert(row, { onConflict: 'user_id' })
+        .select('display_density,timezone,week_starts_on,duration_unit').single();
       if (error) throw error;
       return decodePreferences(data);
     },
@@ -73,6 +77,19 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
       const day = data as Record<string, unknown>;
       return { date: String(day.date), source: day.source_kind as FoodSource, entries: day.entries as FoodEntry[], revisionId: Number(day.revision_id) };
     },
+    async loadWorkoutDay(date): Promise<SavedWorkoutDay | null> {
+      const { data, error } = await client.rpc('workout_day_sets', { p_date: date });
+      if (error) throw translateError(error);
+      if (!data) return null;
+      const day = data as Record<string, unknown>;
+      return { date: String(day.date), source: day.source_kind as WorkoutSource, sets: day.sets as WorkoutSet[], revisionId: Number(day.revision_id) };
+    },
+    async saveExerciseAlias(sourceName, displayName) {
+      const { error } = displayName && displayName.trim()
+        ? await client.from('exercise_aliases').upsert({ source_name: sourceName, display_name: displayName.trim(), updated_at: new Date().toISOString() }, { onConflict: 'source_name' })
+        : await client.from('exercise_aliases').delete().eq('source_name', sourceName);
+      if (error) throw translateError(error);
+    },
     async previewSources(request): Promise<SourcesPreview> {
       const { data, error } = await client.rpc('commit_sources', { ...sourcesPayload(request), p_request_id: null, p_accept_reconciliation: false, p_dry_run: true });
       if (error) throw translateError(error);
@@ -83,6 +100,8 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
         ...decodeFoodCounts(preview),
         keptDates: (preview.kept_dates as string[]) ?? [],
         changedFoodDates: (preview.changed_food_dates as string[]) ?? [],
+        keptWorkoutDates: (preview.kept_workout_dates as string[]) ?? [],
+        changedWorkoutDates: (preview.changed_workout_dates as string[]) ?? [],
         conflicts: decodeConflicts(preview.conflicts),
       };
     },
@@ -153,7 +172,8 @@ function isAlreadyStored(error: { message?: string; status?: number; statusCode?
 }
 
 function archivePath(source: SourceFile): string {
-  return source.kind === 'workbook' ? `workbooks/${source.sha256}.xlsx` : `food-csv/${source.sha256}.csv`;
+  if (source.kind === 'workbook') return `workbooks/${source.sha256}.xlsx`;
+  return source.kind === 'food_csv' ? `food-csv/${source.sha256}.csv` : `workout-csv/${source.sha256}.csv`;
 }
 
 function sourcesPayload(request: SourcesRequest) {
@@ -162,11 +182,15 @@ function sourcesPayload(request: SourcesRequest) {
     p_sources: request.sources.map((source) => ({ kind: source.kind, sha256: source.sha256, file_name: source.name, byte_size: source.byteSize, media_type: source.mediaType })),
     p_daily: request.daily.map((record) => ({ date: record.date, domain: record.domain, fields: record.values })),
     p_food: request.food.map((day) => ({ date: day.date, source_kind: day.source, entries: day.entries })),
+    p_workouts: request.workouts.map((day) => ({ date: day.date, source_kind: day.source, sets: day.sets })),
   };
 }
 
 function decodeFoodCounts(value: Record<string, unknown>): FoodCounts {
-  return { foodAdded: Number(value.food_added ?? 0), foodChanged: Number(value.food_changed ?? 0), foodUnchanged: Number(value.food_unchanged ?? 0), foodKept: Number(value.food_kept ?? 0) };
+  return {
+    foodAdded: Number(value.food_added ?? 0), foodChanged: Number(value.food_changed ?? 0), foodUnchanged: Number(value.food_unchanged ?? 0), foodKept: Number(value.food_kept ?? 0),
+    workoutAdded: Number(value.workout_added ?? 0), workoutChanged: Number(value.workout_changed ?? 0), workoutUnchanged: Number(value.workout_unchanged ?? 0), workoutKept: Number(value.workout_kept ?? 0),
+  };
 }
 
 function decodeConflicts(value: unknown): CalorieConflict[] {
@@ -193,7 +217,10 @@ function decodeChange(value: unknown): ChangeResult {
 }
 
 function decodeHistory(value: unknown): ImportedHistory {
-  const history = value as { revision_id: number | null; records: Array<Record<string, unknown>>; food_days?: Array<Record<string, unknown>>; imports: Array<Record<string, unknown>>; undo_target_id?: string | null };
+  const history = value as {
+    revision_id: number | null; records: Array<Record<string, unknown>>; food_days?: Array<Record<string, unknown>>; workout_days?: Array<Record<string, unknown>>;
+    exercise_names?: Array<Record<string, unknown>>; aliases?: Record<string, string>; imports: Array<Record<string, unknown>>; undo_target_id?: string | null;
+  };
   const numberOrNull = (item: unknown) => (item === null || item === undefined ? null : Number(item));
   return {
     revisionId: history.revision_id ?? null,
@@ -210,6 +237,12 @@ function decodeHistory(value: unknown): ImportedHistory {
       calories: numberOrNull(day.calories), protein: numberOrNull(day.protein), fat: numberOrNull(day.fat), carbs: numberOrNull(day.carbs),
       missingCalories: Number(day.missing_calories ?? 0), revisionId: Number(day.revision_id),
     })),
+    workoutDays: (history.workout_days ?? []).map((day) => ({
+      date: String(day.date), source: day.source_kind as WorkoutSource, sets: Number(day.sets), exercises: Number(day.exercises),
+      workouts: ((day.workouts as unknown[]) ?? []).map(String), durations: ((day.durations as unknown[]) ?? []).map(Number), revisionId: Number(day.revision_id),
+    })),
+    exerciseNames: (history.exercise_names ?? []).map((item) => ({ name: String(item.name), sets: Number(item.sets), days: Number(item.days) })),
+    aliases: history.aliases ?? {},
     imports: history.imports.map((item) => ({
       id: String(item.id),
       kind: (item.kind as ChangeKind | undefined) ?? 'workbook',

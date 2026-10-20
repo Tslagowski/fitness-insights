@@ -1,13 +1,14 @@
 import { CsvParseError, decodeText, parseCsv } from './csv';
 import { combineFoodSources, hasFoodHeaders, parseFoodRows, type FoodDay, type FoodFinding } from './food';
 import { parseWorkbook, WorkbookImportError, type WorkbookImport } from './workbook';
+import { combineWorkoutSources, hasWorkoutHeaders, parseWorkoutRows, type WorkoutDay, type WorkoutFinding } from './workout';
 
 /**
  * Turns the files chosen for one import into a single plan. Files are recognized by content and
  * headers, never by name. One import may combine a workbook and a food CSV.
  */
 
-export type SourceKind = 'workbook' | 'food_csv';
+export type SourceKind = 'workbook' | 'food_csv' | 'workout_csv';
 
 export interface SelectedFile {
   name: string;
@@ -36,14 +37,24 @@ export interface ImportPlan {
     findings: FoodFinding[];
     ignoredColumns: string[];
   } | null;
+  /** Workout days after applying in-import precedence (CSV over workbook Workout Log), if any workout detail was selected. */
+  workouts: {
+    days: WorkoutDay[];
+    sets: number;
+    csvSets: number;
+    workbookSets: number;
+    overriddenWorkbookDates: string[];
+    findings: WorkoutFinding[];
+    ignoredColumns: string[];
+  } | null;
 }
 
 export class ImportPlanError extends Error {}
 
-const workoutHeaders = ['Date', 'Workout', 'Exercise', 'Set Type', 'Weight (lb)', 'Reps'];
 export const mediaTypes: Record<SourceKind, string> = {
   workbook: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   food_csv: 'text/csv',
+  workout_csv: 'text/csv',
 };
 
 export function planImport(files: SelectedFile[]): ImportPlan {
@@ -52,6 +63,8 @@ export function planImport(files: SelectedFile[]): ImportPlan {
   let daily: WorkbookImport | null = null;
   let workbookFood: ReturnType<typeof parseFoodRows> | null = null;
   let csvFood: ReturnType<typeof parseFoodRows> | null = null;
+  let workbookWorkouts: ReturnType<typeof parseWorkoutRows> | null = null;
+  let csvWorkouts: ReturnType<typeof parseWorkoutRows> | null = null;
 
   for (const file of files) {
     const isZip = file.bytes.length > 3 && file.bytes[0] === 0x50 && file.bytes[1] === 0x4b;
@@ -63,6 +76,7 @@ export function planImport(files: SelectedFile[]): ImportPlan {
         throw new ImportPlanError(`${file.name}: ${error instanceof WorkbookImportError ? error.message : 'This workbook could not be read.'}`);
       }
       workbookFood = daily.foodLog;
+      workbookWorkouts = daily.workoutLog;
       sources.push({ name: file.name, kind: 'workbook', byteSize: file.bytes.length, mediaType: mediaTypes.workbook, bytes: file.bytes });
       continue;
     }
@@ -77,10 +91,12 @@ export function planImport(files: SelectedFile[]): ImportPlan {
       if (csvFood) throw new ImportPlanError('More than one food CSV was selected. Choose one food CSV per import. Nothing was changed.');
       csvFood = parseFoodRows(headers, rows.slice(1), 'food_csv', file.name);
       sources.push({ name: file.name, kind: 'food_csv', byteSize: file.bytes.length, mediaType: mediaTypes.food_csv, bytes: file.bytes });
-    } else if (workoutHeaders.every((header) => headers.includes(header))) {
-      throw new ImportPlanError(`${file.name} is a workout CSV. Workout imports arrive in a later update; remove it and import the other files. Nothing was changed.`);
+    } else if (hasWorkoutHeaders(headers)) {
+      if (csvWorkouts) throw new ImportPlanError('More than one workout CSV was selected. Choose one workout CSV per import. Nothing was changed.');
+      csvWorkouts = parseWorkoutRows(headers, rows.slice(1), 'workout_csv', file.name);
+      sources.push({ name: file.name, kind: 'workout_csv', byteSize: file.bytes.length, mediaType: mediaTypes.workout_csv, bytes: file.bytes });
     } else {
-      throw new ImportPlanError(`${file.name} is not a recognized MacroFactor export (expected the .xlsx workbook or the food CSV). Nothing was changed.`);
+      throw new ImportPlanError(`${file.name} is not a recognized MacroFactor export (expected the .xlsx workbook, the food CSV, or the workout CSV). Nothing was changed.`);
     }
   }
 
@@ -97,6 +113,19 @@ export function planImport(files: SelectedFile[]): ImportPlan {
       ignoredColumns: [...new Set([...(csvFood?.ignoredColumns ?? []), ...(workbookFood?.ignoredColumns ?? [])])],
     };
   }
-  if (!daily && !food) throw new ImportPlanError('The selected files contain no daily or food records. Nothing was changed.');
-  return { sources, daily, food };
+  let workouts: ImportPlan['workouts'] = null;
+  if (csvWorkouts || (workbookWorkouts && workbookWorkouts.setCount)) {
+    const combined = combineWorkoutSources(csvWorkouts?.days ?? [], workbookWorkouts?.days ?? []);
+    workouts = {
+      days: combined.days,
+      sets: combined.days.reduce((total, day) => total + day.sets.length, 0),
+      csvSets: csvWorkouts?.setCount ?? 0,
+      workbookSets: workbookWorkouts?.setCount ?? 0,
+      overriddenWorkbookDates: combined.overriddenWorkbookDates,
+      findings: [...(csvWorkouts?.findings ?? []), ...(workbookWorkouts?.findings ?? [])],
+      ignoredColumns: [...new Set([...(csvWorkouts?.ignoredColumns ?? []), ...(workbookWorkouts?.ignoredColumns ?? [])])],
+    };
+  }
+  if (!daily && !food && !workouts) throw new ImportPlanError('The selected files contain no daily, food, or workout records. Nothing was changed.');
+  return { sources, daily, food, workouts };
 }

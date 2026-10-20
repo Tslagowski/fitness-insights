@@ -5,6 +5,7 @@ import {
 } from '../gateway';
 import { domainLabels, type SheetDisposition } from '../import/workbook';
 import { foodSourceLabels } from '../import/food';
+import { workoutSourceLabels } from '../import/workout';
 import { ImportPlanError, planImport, type ImportPlan, type SourceKind } from '../import/sources';
 import {
   domainFreshness, formatCalendarDate, formatValue, newRequestId, plural, proposeChanges, reportingToday, sha256Hex, type ProposedChanges,
@@ -44,8 +45,8 @@ const foodFreshness = computed(() => {
 });
 const keptDates = computed(() => {
   if (!preview.value) return 0;
-  const imported = new Set([...(preview.value.plan.daily?.dates ?? []), ...(preview.value.plan.food?.days.map((day) => day.date) ?? [])]);
-  const saved = new Set([...props.history.records.map((record) => record.date), ...props.history.foodDays.map((day) => day.date)]);
+  const imported = new Set([...(preview.value.plan.daily?.dates ?? []), ...(preview.value.plan.food?.days.map((day) => day.date) ?? []), ...(preview.value.plan.workouts?.days.map((day) => day.date) ?? [])]);
+  const saved = new Set([...props.history.records.map((record) => record.date), ...props.history.foodDays.map((day) => day.date), ...props.history.workoutDays.map((day) => day.date)]);
   return [...saved].filter((date) => !imported.has(date)).length;
 });
 const foodSummary = computed(() => {
@@ -59,13 +60,24 @@ const foodSummary = computed(() => {
     planned: food.days.filter((day) => day.date > today.value),
   };
 });
+const workoutSummary = computed(() => {
+  const workouts = preview.value?.plan.workouts;
+  if (!workouts) return null;
+  const dates = workouts.days.map((day) => day.date);
+  return {
+    first: dates[0], last: dates[dates.length - 1], days: dates.length,
+    csvDays: workouts.days.filter((day) => day.source === 'workout_csv').length,
+    workbookDays: workouts.days.filter((day) => day.source === 'workbook_workout_log').length,
+  };
+});
+const findingCount = computed(() => (preview.value?.plan.daily?.findings.length ?? 0) + (preview.value?.plan.food?.findings.length ?? 0) + (preview.value?.plan.workouts?.findings.length ?? 0));
 const needsAcceptance = computed(() => (preview.value?.server.conflicts.length ?? 0) > 0);
 
-const kindLabels: Record<SourceKind, string> = { workbook: 'Workbook (.xlsx)', food_csv: 'Food CSV' };
+const kindLabels: Record<SourceKind, string> = { workbook: 'Workbook (.xlsx)', food_csv: 'Food CSV', workout_csv: 'Workout CSV' };
 const dispositionText: Record<SheetDisposition, string> = {
   imported: 'Imported: daily history',
   'food-detail': 'Food entries: used for dates without a food CSV',
-  'later-workouts': 'Not imported yet: workout sets (workout import)',
+  'workout-detail': 'Workout sets: used for dates without a workout CSV',
   archived: 'Archived with the raw file; not analyzed',
   unrecognized: 'Unrecognized; archived with the raw file only',
 };
@@ -104,7 +116,7 @@ async function selectFiles(event: Event) {
 
 async function refreshPreview(plan: ImportPlan, sources: SourceFile[]) {
   const baseRevisionId = props.history.revisionId;
-  const server = await props.gateway.previewSources({ expectedRevisionId: baseRevisionId, sources, daily: plan.daily?.records ?? [], food: plan.food?.days ?? [] });
+  const server = await props.gateway.previewSources({ expectedRevisionId: baseRevisionId, sources, daily: plan.daily?.records ?? [], food: plan.food?.days ?? [], workouts: plan.workouts?.days ?? [] });
   preview.value = { plan, sources, requestId: newRequestId(), baseRevisionId, daily: proposeChanges(plan.daily?.records ?? [], props.history), server };
   accepted.value = false;
   phase.value = 'preview';
@@ -124,7 +136,7 @@ async function confirm() {
   try {
     const result = await props.gateway.commitSources({
       requestId: current.requestId, expectedRevisionId: current.baseRevisionId, sources: current.sources,
-      daily: current.plan.daily?.records ?? [], food: current.plan.food?.days ?? [], acceptReconciliation: accepted.value,
+      daily: current.plan.daily?.records ?? [], food: current.plan.food?.days ?? [], workouts: current.plan.workouts?.days ?? [], acceptReconciliation: accepted.value,
     });
     preview.value = null;
     phase.value = 'idle';
@@ -148,6 +160,7 @@ function describeResult(result: SourcesResult): string {
   const parts: string[] = [];
   if (result.added + result.changed + result.unchanged) parts.push(`daily records ${result.added} added, ${result.changed} corrected, ${result.unchanged} unchanged`);
   if (result.foodAdded + result.foodChanged + result.foodUnchanged + result.foodKept) parts.push(`food days ${result.foodAdded} added, ${result.foodChanged} replaced, ${result.foodUnchanged} unchanged`);
+  if (result.workoutAdded + result.workoutChanged + result.workoutUnchanged + result.workoutKept) parts.push(`workout days ${result.workoutAdded} added, ${result.workoutChanged} replaced, ${result.workoutUnchanged} unchanged`);
   return `Import confirmed: ${parts.join('; ')} (version ${result.revisionId}).`;
 }
 
@@ -170,8 +183,8 @@ function chooseFiles() { fileInput.value?.click(); }
 <template>
   <section class="section-card import-card" aria-labelledby="import-heading">
     <div class="section-heading"><div><div class="eyebrow">BRING IN YOUR HISTORY</div><h2 id="import-heading">Import MacroFactor exports</h2></div>
-      <span class="outline-pill">Workbook and food CSV</span></div>
-    <p class="field-help">Choose the .xlsx workbook, the food CSV, or both at once. You'll review every date and change before anything is saved. The raw files are kept privately with your account.</p>
+      <span class="outline-pill">Workbook, food CSV, workout CSV</span></div>
+    <p class="field-help">Choose the .xlsx workbook, the food CSV, the workout CSV, or any combination at once. You'll review every date and change before anything is saved. The raw files are kept privately with your account.</p>
 
     <div v-if="problem" class="alert error" role="alert">{{ problem }}</div>
     <div v-if="outcome" class="alert success" role="status">{{ outcome }}</div>
@@ -196,11 +209,14 @@ function chooseFiles() { fileInput.value?.click(); }
         <div v-if="preview.plan.daily"><span class="change-count">{{ preview.server.changed }}</span><span>{{ preview.server.changed === 1 ? 'correction' : 'corrections' }} to saved daily records</span></div>
         <div v-if="preview.plan.food"><span class="change-count">{{ preview.server.foodAdded }}</span><span>new food {{ preview.server.foodAdded === 1 ? 'day' : 'days' }}</span></div>
         <div v-if="preview.plan.food"><span class="change-count">{{ preview.server.foodChanged }}</span><span>food {{ preview.server.foodChanged === 1 ? 'day' : 'days' }} replaced with newer entries</span></div>
-        <div><span class="change-count">{{ preview.server.unchanged + preview.server.foodUnchanged }}</span><span>already saved, unchanged</span></div>
+        <div v-if="preview.plan.workouts"><span class="change-count">{{ preview.server.workoutAdded }}</span><span>new workout {{ preview.server.workoutAdded === 1 ? 'day' : 'days' }}</span></div>
+        <div v-if="preview.plan.workouts"><span class="change-count">{{ preview.server.workoutChanged }}</span><span>workout {{ preview.server.workoutChanged === 1 ? 'day' : 'days' }} replaced with newer sets</span></div>
+        <div><span class="change-count">{{ preview.server.unchanged + preview.server.foodUnchanged + preview.server.workoutUnchanged }}</span><span>already saved, unchanged</span></div>
       </div>
       <p v-if="keptDates" class="field-help">{{ keptDates }} saved {{ keptDates === 1 ? 'date is' : 'dates are' }} not in these files and will stay exactly as {{ keptDates === 1 ? 'it is' : 'they are' }}.</p>
       <p v-if="preview.server.foodKept" class="field-help">{{ preview.server.foodKept }} {{ preview.server.foodKept === 1 ? 'date keeps its' : 'dates keep their' }} saved food CSV entries; the workbook's Food Log never replaces CSV detail.</p>
-      <p v-if="preview.server.added + preview.server.changed + preview.server.foodAdded + preview.server.foodChanged === 0" class="field-help">Everything in these files matches your saved history. Confirming records the upload but creates no new version.</p>
+      <p v-if="preview.server.workoutKept" class="field-help">{{ preview.server.workoutKept }} {{ preview.server.workoutKept === 1 ? 'date keeps its' : 'dates keep their' }} saved workout CSV sets; the workbook's Workout Log never replaces CSV detail.</p>
+      <p v-if="preview.server.added + preview.server.changed + preview.server.foodAdded + preview.server.foodChanged + preview.server.workoutAdded + preview.server.workoutChanged === 0" class="field-help">Everything in these files matches your saved history. Confirming records the upload but creates no new version.</p>
 
       <div v-if="needsAcceptance" class="confirm-box" role="group" aria-label="Calorie differences">
         <p><strong>Food detail and workbook totals disagree on {{ preview.server.conflicts.length }} {{ preview.server.conflicts.length === 1 ? 'date' : 'dates' }}</strong> by more than max(5 kcal, 1%).
@@ -232,6 +248,14 @@ function chooseFiles() { fileInput.value?.click(); }
         <p v-if="preview.server.changedFoodDates.length" class="muted">Replaced food days: {{ preview.server.changedFoodDates.slice(0, 10).map((date) => formatCalendarDate(date)).join(', ') }}<template v-if="preview.server.changedFoodDates.length > 10"> and {{ preview.server.changedFoodDates.length - 10 }} more</template>.</p>
       </details>
 
+      <details v-if="workoutSummary && preview.plan.workouts" class="preview-section" open>
+        <summary>Workout sets ({{ plural(preview.plan.workouts.sets, 'set') }} on {{ plural(workoutSummary.days, 'day') }})</summary>
+        <p class="field-help">{{ formatCalendarDate(workoutSummary.first) }} – {{ formatCalendarDate(workoutSummary.last) }} · {{ plural(workoutSummary.csvDays, 'day') }} from the {{ workoutSourceLabels.workout_csv }}<template v-if="workoutSummary.workbookDays">, {{ workoutSummary.workbookDays }} from the {{ workoutSourceLabels.workbook_workout_log }}</template>.
+          Sets are kept exactly as logged, in order, including identical repeats. Loads stay as logged (dumbbells per hand), reps as logged (per side for one-sided movements), assistance stays negative, and machine base weight is never added.</p>
+        <p v-if="preview.plan.workouts.overriddenWorkbookDates.length" class="muted">The workout CSV replaces the workbook Workout Log on {{ plural(preview.plan.workouts.overriddenWorkbookDates.length, 'date') }} it covers.</p>
+        <p v-if="preview.server.changedWorkoutDates.length" class="muted">Replaced workout days: {{ preview.server.changedWorkoutDates.slice(0, 10).map((date) => formatCalendarDate(date)).join(', ') }}<template v-if="preview.server.changedWorkoutDates.length > 10"> and {{ preview.server.changedWorkoutDates.length - 10 }} more</template>.</p>
+      </details>
+
       <details v-if="preview.plan.daily" class="preview-section">
         <summary>Daily date coverage by domain</summary>
         <table class="coverage-table"><thead><tr><th scope="col">Domain</th><th scope="col">Dates</th><th scope="col">With values</th><th scope="col">Range</th></tr></thead>
@@ -240,11 +264,12 @@ function chooseFiles() { fileInput.value?.click(); }
         <p class="muted">Blank cells are kept as missing, never as zero.</p>
       </details>
 
-      <details v-if="(preview.plan.daily?.findings.length ?? 0) + (preview.plan.food?.findings.length ?? 0)" class="preview-section" open>
-        <summary>Values needing attention ({{ (preview.plan.daily?.findings.length ?? 0) + (preview.plan.food?.findings.length ?? 0) }})</summary>
+      <details v-if="findingCount" class="preview-section" open>
+        <summary>Values needing attention ({{ findingCount }})</summary>
         <ul class="plain-list">
           <li v-for="finding in preview.plan.daily?.findings ?? []" :key="`d-${finding.row}-${finding.column}`"><strong>{{ finding.sheet }} row {{ finding.row }} · {{ finding.column }}: {{ finding.value }}</strong><span>{{ finding.problem }}</span></li>
           <li v-for="finding in (preview.plan.food?.findings ?? []).slice(0, 50)" :key="`f-${finding.source}-${finding.row}-${finding.column}`"><strong>{{ finding.source }} row {{ finding.row }} · {{ finding.column }}: {{ finding.value }}</strong><span>{{ finding.problem }}</span></li>
+          <li v-for="finding in (preview.plan.workouts?.findings ?? []).slice(0, 50)" :key="`w-${finding.source}-${finding.row}-${finding.column}`"><strong>{{ finding.source }} row {{ finding.row }} · {{ finding.column }}: {{ finding.value }}</strong><span>{{ finding.problem }}</span></li>
         </ul>
       </details>
 
@@ -267,13 +292,15 @@ function chooseFiles() { fileInput.value?.click(); }
 
     <div v-if="historyState === 'ready'" class="freshness">
       <h3>Saved history</h3>
-      <p v-if="!history.records.length && !history.foodDays.length" class="field-help">Nothing imported yet.</p>
+      <p v-if="!history.records.length && !history.foodDays.length && !history.workoutDays.length" class="field-help">Nothing imported yet.</p>
       <template v-else>
         <dl class="calendar-details">
           <div v-for="item in freshness" :key="item.domain"><dt>{{ domainLabels[item.domain] }}</dt>
             <dd>{{ item.lastValueDate ? `through ${formatCalendarDate(item.lastValueDate)}` : 'no values yet' }} · {{ item.dates }} dates</dd></div>
           <div><dt>Food entries</dt>
             <dd>{{ foodFreshness.lastDate ? `through ${formatCalendarDate(foodFreshness.lastDate)}` : 'none yet' }} · {{ plural(foodFreshness.days, 'day') }}<template v-if="foodFreshness.planned"> ({{ foodFreshness.planned }} planned)</template></dd></div>
+          <div><dt>Workout sets</dt>
+            <dd>{{ history.workoutDays.length ? `through ${formatCalendarDate(history.workoutDays[history.workoutDays.length - 1].date)}` : 'none yet' }} · {{ plural(history.workoutDays.length, 'day') }}</dd></div>
         </dl>
         <p v-if="lastImport" class="muted">Last import {{ formatTimestamp(lastImport.committedAt) }} ({{ lastImport.fileNames.join(' + ') }}). Version {{ history.revisionId }}.</p>
       </template>

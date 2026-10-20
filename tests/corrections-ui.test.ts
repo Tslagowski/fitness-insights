@@ -34,7 +34,7 @@ const firstWorkbook = syntheticWorkbook([dailyRow('2026-09-01'), dailyRow('2026-
 
 async function seeded() {
   const gateway = new MemoryGateway();
-  await gateway.commitSources({ requestId: 'seed', expectedRevisionId: null, acceptReconciliation: false, food: [], daily: parseWorkbook(firstWorkbook).records,
+  await gateway.commitSources({ requestId: 'seed', expectedRevisionId: null, acceptReconciliation: false, food: [], workouts: [], daily: parseWorkbook(firstWorkbook).records,
     sources: [{ name: 'first.xlsx', kind: 'workbook', sha256: 'a'.repeat(64), byteSize: 1, mediaType: 'x', bytes: new Uint8Array() }] });
   return gateway;
 }

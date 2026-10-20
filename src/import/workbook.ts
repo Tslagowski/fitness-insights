@@ -1,5 +1,6 @@
 import { readSpreadsheet, SpreadsheetReadError, type SpreadsheetCell, type SpreadsheetSheet } from './xlsx';
 import { hasFoodHeaders, parseFoodRows, type FoodCell, type ParsedFood } from './food';
+import { hasWorkoutHeaders, parseWorkoutRows, type ParsedWorkouts } from './workout';
 
 /**
  * MacroFactor workbook import (ticket 02): daily measurements, expenditure, targets,
@@ -47,7 +48,7 @@ export interface ImportFinding {
   problem: string;
 }
 
-export type SheetDisposition = 'imported' | 'food-detail' | 'later-workouts' | 'archived' | 'unrecognized';
+export type SheetDisposition = 'imported' | 'food-detail' | 'workout-detail' | 'archived' | 'unrecognized';
 
 export interface SheetSummary {
   name: string;
@@ -75,11 +76,12 @@ export interface WorkbookImport {
   ignoredColumns: string[];
   /** Detailed food entries from the Food Log sheet (fallback detail when no food CSV covers a date). */
   foodLog: ParsedFood | null;
+  /** Workout sets from the Workout Log sheet (fallback detail when no workout CSV covers a date). */
+  workoutLog: ParsedWorkouts | null;
 }
 
 export class WorkbookImportError extends Error {}
 
-const workoutHeaders = ['Date', 'Workout', 'Exercise', 'Set Type', 'Weight (lb)', 'Reps'];
 const requiredDailyHeaders = ['Date', ...Object.values(domainColumns).flat()];
 
 export function parseWorkbook(bytes: Uint8Array): WorkbookImport {
@@ -171,7 +173,23 @@ export function parseWorkbook(bytes: Uint8Array): WorkbookImport {
     sheets: sheets.map((sheet) => ({ name: sheet.name, disposition: dispositionOf(sheet, dailySheet), dataRows: dataRowCount(sheet) })),
     ignoredColumns,
     foodLog: readFoodLog(sheets),
+    workoutLog: readWorkoutLog(sheets),
   };
+}
+
+function readWorkoutLog(sheets: SpreadsheetSheet[]): ParsedWorkouts | null {
+  const candidates = sheets.filter((sheet) => hasWorkoutHeaders(headerRow(sheet)));
+  if (candidates.length > 1) {
+    throw new WorkbookImportError(`More than one sheet looks like a workout log (${candidates.map((sheet) => `"${sheet.name}"`).join(', ')}). Nothing was changed.`);
+  }
+  const sheet = candidates[0];
+  return sheet ? parseWorkoutRows(headerRow(sheet), sheet.rows.slice(1).map((row) => row.map(toCell)), 'workbook_workout_log', sheet.name) : null;
+}
+
+function toCell(cell: SpreadsheetCell | undefined): FoodCell {
+  if (!cell || cell.kind === 'empty') return null;
+  if (cell.kind === 'number') return cell.value;
+  return String(cell.value);
 }
 
 function readFoodLog(sheets: SpreadsheetSheet[]): ParsedFood | null {
@@ -181,18 +199,13 @@ function readFoodLog(sheets: SpreadsheetSheet[]): ParsedFood | null {
   }
   const sheet = candidates[0];
   if (!sheet) return null;
-  const toFoodCell = (cell: SpreadsheetCell | undefined): FoodCell => {
-    if (!cell || cell.kind === 'empty') return null;
-    if (cell.kind === 'number') return cell.value;
-    return String(cell.value);
-  };
-  return parseFoodRows(headerRow(sheet), sheet.rows.slice(1).map((row) => row.map(toFoodCell)), 'workbook_food_log', sheet.name);
+  return parseFoodRows(headerRow(sheet), sheet.rows.slice(1).map((row) => row.map(toCell)), 'workbook_food_log', sheet.name);
 }
 
 function dispositionOf(sheet: SpreadsheetSheet, dailySheet: SpreadsheetSheet): SheetDisposition {
   if (sheet === dailySheet) return 'imported';
   if (hasFoodHeaders(headerRow(sheet))) return 'food-detail';
-  if (hasHeaders(sheet, workoutHeaders)) return 'later-workouts';
+  if (hasWorkoutHeaders(headerRow(sheet))) return 'workout-detail';
   const headers = headerRow(sheet);
   if (headers[0] === 'Date' && headers.slice(1).some((header) => / \((?:sets|lb)\)$/.test(header))) return 'archived';
   if (headers[0]?.startsWith('Program:')) return 'archived';

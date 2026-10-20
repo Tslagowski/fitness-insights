@@ -102,7 +102,7 @@ test('a later workbook-only import keeps saved CSV detail, and clearing a food d
   await app.get('#correct-date').setValue('2026-09-01');
   await app.get('#correct-domain').setValue('food_entries');
   await click(app, 'Review clearing');
-  expect(app.get('[aria-label="Confirm clearing"]').text()).toContain('Remove all 3 food entries for Sep 1, 2026');
+  expect(app.get('[aria-label="Confirm clearing"]').text()).toContain('Remove 3 food entries for Sep 1, 2026');
   await click(app, 'Clear this data');
   expect(gateway.activeFood.map((row) => row.date)).toEqual(['2030-01-01']);
 
@@ -120,10 +120,10 @@ test('a later workbook-only import keeps saved CSV detail, and clearing a food d
   expect(gateway.activeFood.find((row) => row.date === '2026-09-01')?.entries).toHaveLength(3);
 });
 
-test('a workout CSV is explained rather than imported', async () => {
+test('a CSV missing required workout columns is explained rather than imported', async () => {
   const gateway = new MemoryGateway();
   const app = await open(gateway);
   await chooseFiles(app, [['workouts.csv', strToU8('Date,Workout,Exercise,Set Type,Weight (lb),Reps\n2026-09-01,Push,Bench,Standard Set,135,8\n')]]);
-  expect(app.get('[role="alert"]').text()).toContain('is a workout CSV');
+  expect(app.get('[role="alert"]').text()).toContain('workouts.csv is not a recognized MacroFactor export');
   expect(gateway.calls).toHaveLength(0);
 });

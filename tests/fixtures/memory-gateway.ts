@@ -1,9 +1,10 @@
 import {
   defaultPreferences, NothingToChangeError, ReconciliationRequiredError, StaleRevisionError, type CalorieConflict, type ChangeKind,
   type ChangeResult, type ClearableDomain, type ClearDayRequest, type DisplayDensity, type FoodDaySummary, type Gateway, type Identity,
-  type ImportedHistory, type ImportSummary, type SavedFoodDay, type SourcesCommitRequest, type SourcesPreview, type SourcesRequest,
-  type SourcesResult, type UndoPreview,
+  type ImportedHistory, type ImportSummary, type PreferenceChanges, type SavedFoodDay, type SavedWorkoutDay, type SourcesCommitRequest,
+  type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview, type WorkoutDaySummary,
 } from '../../src/gateway';
+import type { DurationUnit, WorkoutSet, WorkoutSource } from '../../src/import/workout';
 import type { DailyDomain, DailyValues } from '../../src/import/workbook';
 import { calorieTolerance, foodDayTotals, type FoodEntry, type FoodSource } from '../../src/import/food';
 import { sameValues } from '../../src/import/preview';
@@ -11,9 +12,10 @@ import { sameValues } from '../../src/import/preview';
 interface Span { introduced: number; retired: number | null }
 interface Row extends Span { date: string; domain: DailyDomain; values: DailyValues; sourceFileId: string }
 interface FoodRow extends Span { date: string; source: FoodSource; entries: FoodEntry[]; sourceFileId: string }
+interface WorkoutRow extends Span { date: string; source: WorkoutSource; sets: WorkoutSet[]; sourceFileId: string }
 interface Event extends ImportSummary { requestId: string; baseRevisionId: number | null }
 
-const sameEntries = (left: FoodEntry[], right: FoodEntry[]) => JSON.stringify(left) === JSON.stringify(right);
+const sameEntries = (left: unknown[], right: unknown[]) => JSON.stringify(left) === JSON.stringify(right);
 
 /**
  * In-memory stand-in for the Supabase gateway that follows the same rules as the SQL functions:
@@ -24,12 +26,15 @@ export class MemoryGateway implements Gateway {
   identity: Identity | null = { id: 'owner', name: 'Trevis' };
   owner = true;
   density: DisplayDensity = 'comfortable';
+  durationUnit: DurationUnit = 'seconds';
+  aliases: Record<string, string> = {};
   failSave = false;
   failWrites = false;
   listener = () => {};
   revisionId: number | null = null;
   rows: Row[] = [];
   food: FoodRow[] = [];
+  workouts: WorkoutRow[] = [];
   events: Event[] = [];
   calls: Array<{ method: string; requestId?: string; expectedRevisionId: number | null }> = [];
   private nextRevision = 1;
@@ -37,10 +42,11 @@ export class MemoryGateway implements Gateway {
 
   async getIdentity() { return this.identity; }
   async isOwner() { return this.owner; }
-  async loadPreferences() { return { ...defaultPreferences, displayDensity: this.density }; }
-  async savePreferences(_userId: string, density: DisplayDensity) {
+  async loadPreferences() { return { ...defaultPreferences, displayDensity: this.density, durationUnit: this.durationUnit }; }
+  async savePreferences(_userId: string, changes: PreferenceChanges) {
     if (this.failSave) throw new Error('Network unavailable');
-    this.density = density;
+    if (changes.displayDensity) this.density = changes.displayDensity;
+    if (changes.durationUnit) this.durationUnit = changes.durationUnit;
     return this.loadPreferences();
   }
   async signIn() {}
@@ -49,6 +55,7 @@ export class MemoryGateway implements Gateway {
 
   get active() { return this.rows.filter((row) => row.retired === null); }
   get activeFood() { return this.food.filter((row) => row.retired === null); }
+  get activeWorkouts() { return this.workouts.filter((row) => row.retired === null); }
 
   async loadHistory(): Promise<ImportedHistory> {
     return {
@@ -58,6 +65,17 @@ export class MemoryGateway implements Gateway {
         const totals = foodDayTotals(row.entries);
         return { date: row.date, source: row.source, entries: row.entries.length, calories: totals.calories, protein: totals.protein, fat: totals.fat, carbs: totals.carbs, missingCalories: totals.entriesMissingCalories, revisionId: row.introduced };
       }),
+      workoutDays: this.activeWorkouts.sort((left, right) => left.date.localeCompare(right.date)).map((row): WorkoutDaySummary => ({
+        date: row.date, source: row.source, sets: row.sets.length, exercises: new Set(row.sets.map((set) => set.Exercise)).size,
+        workouts: [...new Set(row.sets.map((set) => set.Workout).filter((name): name is string => typeof name === 'string'))],
+        durations: [...new Set(row.sets.map((set) => set['Workout Duration']).filter((value): value is number => typeof value === 'number'))],
+        revisionId: row.introduced,
+      })),
+      exerciseNames: [...new Set(this.activeWorkouts.flatMap((row) => row.sets.map((set) => String(set.Exercise))))].sort().map((name) => ({
+        name, sets: this.activeWorkouts.flatMap((row) => row.sets).filter((set) => set.Exercise === name).length,
+        days: this.activeWorkouts.filter((row) => row.sets.some((set) => set.Exercise === name)).length,
+      })),
+      aliases: { ...this.aliases },
       imports: [...this.events].reverse().map(({ requestId: _requestId, baseRevisionId: _base, ...summary }) => ({ ...summary, undone: this.events.some((event) => event.undoesId === summary.id) })),
       undoTargetId: this.undoTarget()?.id ?? null,
     };
@@ -68,20 +86,34 @@ export class MemoryGateway implements Gateway {
     return row ? { date: row.date, source: row.source, entries: row.entries.map((entry) => ({ ...entry })), revisionId: row.introduced } : null;
   }
 
+  async loadWorkoutDay(date: string): Promise<SavedWorkoutDay | null> {
+    const row = this.activeWorkouts.find((item) => item.date === date);
+    return row ? { date: row.date, source: row.source, sets: row.sets.map((set) => ({ ...set })), revisionId: row.introduced } : null;
+  }
+
+  async saveExerciseAlias(sourceName: string, displayName: string | null) {
+    this.calls.push({ method: 'saveExerciseAlias', expectedRevisionId: null });
+    if (this.failWrites) throw new Error('Network unavailable');
+    if (displayName) this.aliases[sourceName] = displayName;
+    else delete this.aliases[sourceName];
+  }
+
   async previewSources(request: SourcesRequest): Promise<SourcesPreview> {
     this.calls.push({ method: 'previewSources', expectedRevisionId: request.expectedRevisionId });
     if (request.expectedRevisionId !== this.revisionId) throw new StaleRevisionError('stale');
     const plan = this.planSources(request);
     return { revisionId: this.revisionId, ...plan.counts, keptDates: plan.food.filter((item) => item.status === 'kept').map((item) => item.day.date),
-      changedFoodDates: plan.food.filter((item) => item.status === 'changed').map((item) => item.day.date), conflicts: plan.conflicts };
+      changedFoodDates: plan.food.filter((item) => item.status === 'changed').map((item) => item.day.date),
+      keptWorkoutDates: plan.workouts.filter((item) => item.status === 'kept').map((item) => item.day.date),
+      changedWorkoutDates: plan.workouts.filter((item) => item.status === 'changed').map((item) => item.day.date), conflicts: plan.conflicts };
   }
 
   async commitSources(request: SourcesCommitRequest): Promise<SourcesResult> {
     const replay = this.begin('commitSources', request.requestId, request.expectedRevisionId);
-    if (replay) return { ...replay, unchanged: 0, foodAdded: 0, foodChanged: 0, foodUnchanged: 0, foodKept: 0, conflicts: [] };
+    if (replay) return { ...replay, unchanged: 0, foodAdded: 0, foodChanged: 0, foodUnchanged: 0, foodKept: 0, workoutAdded: 0, workoutChanged: 0, workoutUnchanged: 0, workoutKept: 0, conflicts: [] };
     const plan = this.planSources(request);
     if (plan.conflicts.length && !request.acceptReconciliation) throw new ReconciliationRequiredError('Reconciliation required');
-    const applied = [...plan.daily, ...plan.food].filter((item) => item.status === 'added' || item.status === 'changed');
+    const applied = [...plan.daily, ...plan.food, ...plan.workouts].filter((item) => item.status === 'added' || item.status === 'changed');
     const revision = applied.length ? this.newRevision() : null;
     const sourceId = (kind: string) => request.sources.find((source) => source.kind === kind)?.sha256 ?? kind;
     for (const item of plan.daily) {
@@ -94,9 +126,13 @@ export class MemoryGateway implements Gateway {
       if (item.existing) item.existing.retired = revision;
       this.food.push({ date: item.day.date, source: item.day.source, entries: item.day.entries.map((entry) => ({ ...entry })), sourceFileId: sourceId(item.day.source === 'food_csv' ? 'food_csv' : 'workbook'), introduced: revision!, retired: null });
     }
-    const dates = [...request.daily.map((record) => record.date), ...request.food.map((day) => day.date)].sort();
-    const { added, changed, unchanged, foodAdded, foodChanged, foodUnchanged, foodKept } = plan.counts;
-    this.record(request.requestId, 'import', revision, { added, changed, unchanged, removed: 0, foodAdded, foodChanged, foodUnchanged, foodKept,
+    for (const item of plan.workouts) {
+      if (item.status !== 'added' && item.status !== 'changed') continue;
+      if (item.existing) item.existing.retired = revision;
+      this.workouts.push({ date: item.day.date, source: item.day.source, sets: item.day.sets.map((set) => ({ ...set })), sourceFileId: sourceId(item.day.source === 'workout_csv' ? 'workout_csv' : 'workbook'), introduced: revision!, retired: null });
+    }
+    const dates = [...request.daily.map((record) => record.date), ...request.food.map((day) => day.date), ...request.workouts.map((day) => day.date)].sort();
+    this.record(request.requestId, 'import', revision, { ...plan.counts, removed: 0,
       firstDate: dates[0] ?? null, lastDate: dates.at(-1) ?? null, fileNames: request.sources.map((source) => source.name), reconciliation: plan.conflicts });
     return { outcome: revision ? 'changed' : 'unchanged', replayed: false, revisionId: this.revisionId, ...plan.counts, conflicts: plan.conflicts };
   }
@@ -106,7 +142,9 @@ export class MemoryGateway implements Gateway {
     if (replay) return replay;
     const existing: Span | undefined = request.domain === 'food_entries'
       ? this.activeFood.find((row) => row.date === request.date)
-      : this.active.find((row) => row.date === request.date && row.domain === request.domain);
+      : request.domain === 'workout_sets'
+        ? this.activeWorkouts.find((row) => row.date === request.date)
+        : this.active.find((row) => row.date === request.date && row.domain === request.domain);
     if (!existing) throw new NothingToChangeError('There is no saved record for that date and domain.');
     const revision = this.newRevision();
     existing.retired = revision;
@@ -130,6 +168,7 @@ export class MemoryGateway implements Gateway {
     for (const item of plan) {
       if (item.current) item.current.retired = revision;
       if (item.restoreRow) this.rows.push({ ...item.restoreRow, values: { ...item.restoreRow.values }, introduced: revision!, retired: null });
+      if (item.restoreWorkout) this.workouts.push({ ...item.restoreWorkout, sets: item.restoreWorkout.sets.map((set) => ({ ...set })), introduced: revision!, retired: null });
       if (item.restoreFood) this.food.push({ ...item.restoreFood, entries: item.restoreFood.entries.map((entry) => ({ ...entry })), introduced: revision!, retired: null });
     }
     const counts = this.count(plan);
@@ -141,7 +180,7 @@ export class MemoryGateway implements Gateway {
   /** Simulates another device changing the shared history with a workbook-sourced daily import. */
   async otherDeviceImport(records: Array<{ date: string; domain: DailyDomain; values: DailyValues }>) {
     return this.commitSources({ requestId: `other-${this.clock}`, expectedRevisionId: this.revisionId, acceptReconciliation: true,
-      sources: [{ name: 'other-device.xlsx', kind: 'workbook', sha256: 'f'.repeat(64), byteSize: 1, mediaType: 'x', bytes: new Uint8Array() }], daily: records, food: [] });
+      sources: [{ name: 'other-device.xlsx', kind: 'workbook', sha256: 'f'.repeat(64), byteSize: 1, mediaType: 'x', bytes: new Uint8Array() }], daily: records, food: [], workouts: [] });
   }
 
   private planSources(request: SourcesRequest) {
@@ -157,9 +196,17 @@ export class MemoryGateway implements Gateway {
           : existing.source === day.source && sameEntries(existing.entries, day.entries) ? 'unchanged' : 'changed';
       return { day, existing, status };
     });
+    const workouts = request.workouts.map((day) => {
+      const existing = this.activeWorkouts.find((row) => row.date === day.date);
+      const status = !existing ? 'added'
+        : existing.source === 'workout_csv' && day.source === 'workbook_workout_log' ? 'kept'
+          : existing.source === day.source && sameEntries(existing.sets, day.sets) ? 'unchanged' : 'changed';
+      return { day, existing, status };
+    });
     const count = (items: Array<{ status: string }>, status: string) => items.filter((item) => item.status === status).length;
     const counts = { added: count(daily, 'added'), changed: count(daily, 'changed'), unchanged: count(daily, 'unchanged'),
-      foodAdded: count(food, 'added'), foodChanged: count(food, 'changed'), foodUnchanged: count(food, 'unchanged'), foodKept: count(food, 'kept') };
+      foodAdded: count(food, 'added'), foodChanged: count(food, 'changed'), foodUnchanged: count(food, 'unchanged'), foodKept: count(food, 'kept'),
+      workoutAdded: count(workouts, 'added'), workoutChanged: count(workouts, 'changed'), workoutUnchanged: count(workouts, 'unchanged'), workoutKept: count(workouts, 'kept') };
     const touched = new Set([...food.filter((item) => item.status === 'added' || item.status === 'changed').map((item) => item.day.date),
       ...daily.filter((item) => item.record.domain === 'nutrition_totals' && (item.status === 'added' || item.status === 'changed')).map((item) => item.record.date)]);
     const conflicts: CalorieConflict[] = [];
@@ -174,7 +221,7 @@ export class MemoryGateway implements Gateway {
         conflicts.push({ date, detailCalories: detail, workbookCalories: workbook, difference: detail - workbook });
       }
     }
-    return { daily, food, counts, conflicts };
+    return { daily, food, workouts, counts, conflicts };
   }
 
   private begin(method: string, requestId: string, expectedRevisionId: number | null): ChangeResult | null {
@@ -195,7 +242,7 @@ export class MemoryGateway implements Gateway {
     if (!target) throw new NothingToChangeError('There is no import or correction to undo.');
     const base = target.baseRevisionId;
     const at = <T extends Span>(rows: T[]) => (base === null ? [] : rows.filter((row) => row.introduced <= base && (row.retired === null || row.retired > base)));
-    const plan: Array<{ date: string; action: 'added' | 'changed' | 'removed'; current?: Span; restoreRow?: Row; restoreFood?: FoodRow }> = [];
+    const plan: Array<{ date: string; action: 'added' | 'changed' | 'removed'; current?: Span; restoreRow?: Row; restoreFood?: FoodRow; restoreWorkout?: WorkoutRow }> = [];
     const snapshot = at(this.rows);
     for (const key of new Set([...snapshot, ...this.active].map((row) => `${row.date}|${row.domain}`))) {
       const [date, domain] = key.split('|');
@@ -211,6 +258,13 @@ export class MemoryGateway implements Gateway {
       if (restoreFood && current && restoreFood.source === current.source && sameEntries(restoreFood.entries, current.entries)) continue;
       plan.push({ date, action: !current ? 'added' : !restoreFood ? 'removed' : 'changed', current, restoreFood });
     }
+    const workoutSnapshot = at(this.workouts);
+    for (const date of new Set([...workoutSnapshot, ...this.activeWorkouts].map((row) => row.date))) {
+      const restoreWorkout = workoutSnapshot.find((row) => row.date === date);
+      const current = this.activeWorkouts.find((row) => row.date === date);
+      if (restoreWorkout && current && restoreWorkout.source === current.source && sameEntries(restoreWorkout.sets, current.sets)) continue;
+      plan.push({ date, action: !current ? 'added' : !restoreWorkout ? 'removed' : 'changed', current, restoreWorkout });
+    }
     return { target, plan };
   }
 
@@ -225,7 +279,8 @@ export class MemoryGateway implements Gateway {
     this.events.push({
       id: `change-${this.events.length + 1}`, requestId, kind, baseRevisionId: this.revisionId, outcome: revision ? 'changed' : 'unchanged',
       revisionId: revision, committedAt: new Date(this.clock).toISOString(), clearedDate: null, clearedDomain: null, undoesId: null, undone: false,
-      firstDate: null, lastDate: null, fileNames: [], reconciliation: [], foodAdded: 0, foodChanged: 0, foodUnchanged: 0, foodKept: 0, ...details,
+      firstDate: null, lastDate: null, fileNames: [], reconciliation: [], foodAdded: 0, foodChanged: 0, foodUnchanged: 0, foodKept: 0,
+      workoutAdded: 0, workoutChanged: 0, workoutUnchanged: 0, workoutKept: 0, ...details,
     });
     if (revision) this.revisionId = revision;
   }
