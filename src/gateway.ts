@@ -2,6 +2,7 @@ import type { DailyDomain, DailyRecord } from './import/workbook';
 import type { FoodDay, FoodEntry, FoodSource } from './import/food';
 import type { SourceKind } from './import/sources';
 import type { DurationUnit, WorkoutDay, WorkoutSet, WorkoutSource } from './import/workout';
+import { emptyReviewState, type CompletenessStatus, type ReviewChoice, type ReviewState } from './analysis/eligibility';
 
 export type DisplayDensity = 'comfortable' | 'compact';
 
@@ -36,6 +37,10 @@ export interface Gateway {
   loadWorkoutDay(date: string): Promise<SavedWorkoutDay | null>;
   /** Sets (or, with null, removes) the cosmetic display name for a logged exercise name. Raw records are unchanged. */
   saveExerciseAlias(sourceName: string, displayName: string | null): Promise<void>;
+  /** Records the owner's decision about one specific saved value (latest decision wins). */
+  saveReviewDecision(decision: { date: string; domain: 'scale_weight'; field: string; value: number; decision: ReviewChoice }): Promise<void>;
+  /** Marks a date's nutrition logging incomplete (or complete again). */
+  saveCompleteness(mark: { date: string; domain: 'nutrition'; status: CompletenessStatus }): Promise<void>;
   /** Compares an import with saved history on the server (food detail and reconciliation) without changing anything. */
   previewSources(request: SourcesRequest): Promise<SourcesPreview>;
   /** Archives the raw files privately, then atomically commits the import. Safe to retry with the same request id. */
@@ -229,6 +234,8 @@ export interface ImportedHistory {
   imports: ImportSummary[];
   /** The change Undo would revert next, if any. */
   undoTargetId: string | null;
+  /** The owner's review decisions and completeness marks (not part of import revisions). */
+  review: ReviewState;
 }
 
 /** The shared history changed after the preview was prepared (for example, on another device). */
@@ -240,7 +247,7 @@ export class NothingToChangeError extends Error {}
 /** Food detail and workbook totals disagree beyond the tolerance and the owner has not accepted the source winner. */
 export class ReconciliationRequiredError extends Error {}
 
-export const emptyHistory: ImportedHistory = { revisionId: null, records: [], foodDays: [], workoutDays: [], exerciseNames: [], aliases: {}, imports: [], undoTargetId: null };
+export const emptyHistory: ImportedHistory = { revisionId: null, records: [], foodDays: [], workoutDays: [], exerciseNames: [], aliases: {}, imports: [], undoTargetId: null, review: emptyReviewState };
 
 export const defaultPreferences: Preferences = {
   displayDensity: 'comfortable',

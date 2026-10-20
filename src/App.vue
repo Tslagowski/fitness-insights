@@ -4,6 +4,10 @@ import { defaultPreferences, emptyHistory, type DisplayDensity, type Gateway, ty
 import ImportPanel from './components/ImportPanel.vue';
 import FoodLog from './components/FoodLog.vue';
 import TrainingLog from './components/TrainingLog.vue';
+import DataStatus from './components/DataStatus.vue';
+import ReviewQueue from './components/ReviewQueue.vue';
+import CompletenessPanel from './components/CompletenessPanel.vue';
+import { evaluateEligibility } from './analysis/eligibility';
 import type { DurationUnit } from './import/workout';
 import DailyTable from './components/DailyTable.vue';
 import CorrectDay from './components/CorrectDay.vue';
@@ -33,6 +37,7 @@ const signOutRequired = ref(false);
 const history = ref<ImportedHistory>({ ...emptyHistory });
 const historyState = ref<'loading' | 'ready' | 'error'>('loading');
 const historyDates = computed(() => [...new Set([...history.value.records.map((record) => record.date), ...history.value.foodDays.map((day) => day.date), ...history.value.workoutDays.map((day) => day.date)])].sort());
+const eligibility = computed(() => evaluateEligibility(history.value, history.value.review, reportingToday()));
 const hasHistory = computed(() => history.value.records.length > 0 || history.value.foodDays.length > 0 || history.value.workoutDays.length > 0);
 let revision = 0;
 let unsubscribe = () => {};
@@ -229,9 +234,14 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
               <span class="outline-pill">Version {{ history.revisionId }}</span></div>
               <p class="field-help">{{ historyDates.length }} dates, {{ formatCalendarDate(historyDates[0]) }} – {{ formatCalendarDate(historyDates[historyDates.length - 1]) }}.
                 Values are shown exactly as exported; "—" means not recorded. Intake is the sum of that day's food entries when they exist, otherwise the workbook's daily total; the two are never added together. Analysis and charts arrive in later updates.</p>
-              <DailyTable :records="history.records" :food-days="history.foodDays" :today="reportingToday()" caption="Saved daily history" />
+              <DailyTable :records="history.records" :food-days="history.foodDays" :today="reportingToday()" :statuses="eligibility.days" caption="Saved daily history" />
             </section>
             <FoodLog v-if="gateway && history.foodDays.length" :gateway="gateway" :food-days="history.foodDays" :today="reportingToday()" />
+          </template>
+          <template v-else-if="page === 'overview' && gateway && historyState === 'ready' && hasHistory">
+            <DataStatus :report="eligibility" />
+            <ReviewQueue :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
+            <CompletenessPanel :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
           </template>
           <TrainingLog v-else-if="page === 'training' && gateway && history.workoutDays.length" :gateway="gateway" :history="history" :duration-unit="preferences.durationUnit" :today="reportingToday()" :reload-history="reloadHistory" />
           <section v-else-if="page === 'nutrition' && historyState === 'error'" class="empty-card"><h2>Your saved history could not be loaded.</h2><p>Nothing has been changed. If the free service is paused, resume the project and retry.</p><button class="primary-button" @click="reloadHistory">Try again</button></section>

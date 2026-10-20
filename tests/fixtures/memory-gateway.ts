@@ -5,6 +5,7 @@ import {
   type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview, type WorkoutDaySummary,
 } from '../../src/gateway';
 import type { DurationUnit, WorkoutSet, WorkoutSource } from '../../src/import/workout';
+import type { CompletenessStatus, ReviewChoice, ReviewState } from '../../src/analysis/eligibility';
 import type { DailyDomain, DailyValues } from '../../src/import/workbook';
 import { calorieTolerance, foodDayTotals, type FoodEntry, type FoodSource } from '../../src/import/food';
 import { sameValues } from '../../src/import/preview';
@@ -28,6 +29,7 @@ export class MemoryGateway implements Gateway {
   density: DisplayDensity = 'comfortable';
   durationUnit: DurationUnit = 'seconds';
   aliases: Record<string, string> = {};
+  review: ReviewState = { decisions: [], completeness: [] };
   failSave = false;
   failWrites = false;
   listener = () => {};
@@ -78,6 +80,7 @@ export class MemoryGateway implements Gateway {
       aliases: { ...this.aliases },
       imports: [...this.events].reverse().map(({ requestId: _requestId, baseRevisionId: _base, ...summary }) => ({ ...summary, undone: this.events.some((event) => event.undoesId === summary.id) })),
       undoTargetId: this.undoTarget()?.id ?? null,
+      review: { decisions: [...this.review.decisions], completeness: [...this.review.completeness] },
     };
   }
 
@@ -89,6 +92,20 @@ export class MemoryGateway implements Gateway {
   async loadWorkoutDay(date: string): Promise<SavedWorkoutDay | null> {
     const row = this.activeWorkouts.find((item) => item.date === date);
     return row ? { date: row.date, source: row.source, sets: row.sets.map((set) => ({ ...set })), revisionId: row.introduced } : null;
+  }
+
+  async saveReviewDecision(decision: { date: string; domain: 'scale_weight'; field: string; value: number; decision: ReviewChoice }) {
+    this.calls.push({ method: 'saveReviewDecision', expectedRevisionId: null });
+    if (this.failWrites) throw new Error('Network unavailable');
+    this.clock += 60_000;
+    this.review.decisions.push({ ...decision, decidedAt: new Date(this.clock).toISOString() });
+  }
+
+  async saveCompleteness(mark: { date: string; domain: 'nutrition'; status: CompletenessStatus }) {
+    this.calls.push({ method: 'saveCompleteness', expectedRevisionId: null });
+    if (this.failWrites) throw new Error('Network unavailable');
+    this.clock += 60_000;
+    this.review.completeness.push({ ...mark, decidedAt: new Date(this.clock).toISOString() });
   }
 
   async saveExerciseAlias(sourceName: string, displayName: string | null) {

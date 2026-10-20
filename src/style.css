@@ -188,6 +188,21 @@ main:focus { outline: 0; }
 .alias-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .alias-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .alias-edit .text-input { flex: 1 1 180px; }
+.review-list { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.review-list li { border: 1px solid #ecdcc1; background: #faf5ec; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.review-list li.kept, .review-list li.excluded { background: #fffefa; border-color: #e0e6d9; }
+.review-value { display: flex; align-items: baseline; gap: 12px; }
+.review-value strong { font-size: 20px; letter-spacing: -.4px; }
+.review-value span { font-size: 12px; color: #62755b; }
+.review-reason { font-size: 12px; line-height: 1.6; }
+.review-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.primary-button.secondary { background: #fffefa; color: #233e32; }
+.primary-button.secondary:hover { background: #f1f4ec; }
+.status-counts { margin-top: 18px; }
+.complete-action { display: flex; align-items: end; }
+.marked-days { margin-top: 14px; }
+.marked-day { flex-direction: row !important; justify-content: space-between; align-items: center; border-top: 1px solid #eef1e9; padding-top: 6px; }
+.table-note { margin-top: 8px; }
 @media (min-width: 1600px) {
   main { padding-top: 58px; }
   .welcome-content { padding: 55px; }

@@ -58,10 +58,11 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 - `src/App.vue`: account lifecycle, navigation, settings, empty states.
 - `src/supabase-gateway.ts`: OAuth, preference, archive upload, and import transport.
 - `src/import/`: workbook reading (`xlsx.ts`), CSV reading (`csv.ts`), MacroFactor daily records (`workbook.ts`), food entries (`food.ts`), workout sets and sessions (`workout.ts`), multi-file import plans (`sources.ts`), and preview helpers (`preview.ts`).
-- `src/components/`: the import panel, daily history table, food log, training log with exercise aliases, Correct a day panel, and change history with Undo.
+- `src/analysis/eligibility.ts`: completed-day eligibility, import cutoffs, weight review flags, and completeness (ticket 06), shared by later analysis.
+- `src/components/`: the data status, review queue, and incomplete-days panels, the import panel, daily history table, food log, training log with exercise aliases, Correct a day panel, and change history with Undo.
 - `supabase/migrations`: owner allowlist, row-level access rules, revisioned daily history with the atomic `commit_import` function, and the private source archive bucket.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is implemented and awaiting live verification.
+- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; tickets 05 and 06 are implemented and awaiting live verification.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.
@@ -164,4 +165,14 @@ The import also accepts the MacroFactor workout CSV (alone or with the other fil
 - **Durations** keep raw values; the app reads them as seconds by default, a provisional, owner-changeable setting (Imports & Settings) shown as unverified until one session is checked against MacroFactor (release gate in ticket 14).
 - **Exercise names** stay separate; an owner-chosen display alias (`exercise_aliases`) can group a rename or a superset label (for example "Hack Squat ∈ SS1") without changing raw records, and can be removed.
 - Workout import, clearing (`workout_sets`), reimport, and Undo use the same revisioned workflow as daily and food records. Raw workout CSVs are archived privately under `workout-csv/`.
+
+## Review and completed-day eligibility (ticket 06)
+
+`src/analysis/eligibility.ts` decides, reproducibly from saved history, owner decisions, and the America/Denver date, which values count for completed-day analysis and why others do not. Raw records are never edited.
+
+- **Weight review:** a weigh-in more than 10% from the median of at least three previously accepted weigh-ins within the prior seven calendar days is flagged and left out of weight calculations until the owner keeps or excludes it (Overview > Review queue). Pending and excluded values never form a baseline; kept values do. Without a baseline, no relative flag is produced. Decisions apply to the exact saved value, so a value changed by a later import is checked again.
+- **Source estimates:** while a flagged weigh-in is not kept, MacroFactor's trend weight and expenditure from that date onward are labeled (†) as possibly affected; excluding a scale point does not pretend to repair them.
+- **Incomplete days:** the owner can mark a day's nutrition logging incomplete (Overview), which leaves only that day's intake out; low intake is never assumed incomplete and high intake is never removed automatically.
+- **Timing:** today is in progress and later dates are planned. Completed-day cutoffs come from the latest (not undone) import that included each kind of data: the day before that import, never after yesterday. A pre-logged day is not confirmed by time passing alone.
+- Decisions and completeness marks are append-only owner logs (`review_decisions`, `completeness_marks`, read through `review_state()`); the latest entry per value or date wins. They are not part of import revisions, so importing, clearing, and Undo never remove them.
 

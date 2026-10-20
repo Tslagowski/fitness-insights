@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { FoodDaySummary } from '../gateway';
+import type { DayStatus } from '../analysis/eligibility';
 import type { DailyDomain, DailyRecord, DailyValues } from '../import/workbook';
 import { dailyIntake, formatCalendarDate, formatValue } from '../import/preview';
 
-const props = defineProps<{ records: DailyRecord[]; foodDays: FoodDaySummary[]; today: string; caption: string }>();
+const props = defineProps<{ records: DailyRecord[]; foodDays: FoodDaySummary[]; today: string; caption: string; statuses?: DayStatus[] }>();
 
 const measurementColumns: Array<{ domain: DailyDomain; field: string; label: string; digits?: number }> = [
   { domain: 'scale_weight', field: 'Weight (lb)', label: 'Scale weight (lb)' },
@@ -16,6 +17,7 @@ const trailingColumns: Array<{ domain: DailyDomain; field: string; label: string
   { domain: 'steps', field: 'Steps', label: 'Steps', digits: 0 },
 ];
 const sourceLabels = { detail: 'food entries', workbook: 'workbook total' } as const;
+const anyWarning = computed(() => (props.statuses ?? []).some((status) => status.estimateWarning));
 
 const rows = computed(() => {
   const byDate = new Map<string, Map<DailyDomain, DailyValues>>();
@@ -24,6 +26,7 @@ const rows = computed(() => {
     byDate.get(record.date)!.set(record.domain, record.values);
   }
   const foodByDate = new Map(props.foodDays.map((day) => [day.date, day]));
+  const statusByDate = new Map((props.statuses ?? []).map((status) => [status.date, status]));
   const dates = [...new Set([...byDate.keys(), ...foodByDate.keys()])].sort().reverse();
   const cell = (domains: Map<DailyDomain, DailyValues> | undefined, column: { domain: DailyDomain; field: string; digits?: number }) => {
     const values = domains?.get(column.domain);
@@ -33,12 +36,19 @@ const rows = computed(() => {
     const domains = byDate.get(date);
     const intake = dailyIntake(foodByDate.get(date), domains?.get('nutrition_totals'));
     const planned = date > props.today;
+    const status = statusByDate.get(date);
+    const awaiting = !!status && date < props.today && [status.intake, status.weight].some((item) => !item.eligible && item.reason === 'after-import-cutoff');
+    const measurements = measurementColumns.map((column) => cell(domains, column));
+    if (status && !status.weight.eligible && status.weight.reason === 'pending-review') measurements[0] += ' (pending review)';
+    if (status && !status.weight.eligible && status.weight.reason === 'excluded') measurements[0] += ' (excluded)';
+    if (status?.estimateWarning) { measurements[1] += ' †'; measurements[2] += ' †'; }
+    const incomplete = !!status && !status.intake.eligible && status.intake.reason === 'incomplete';
     return {
       date,
-      status: date === props.today ? 'In progress' : planned ? 'Planned' : '',
-      measurements: measurementColumns.map((column) => cell(domains, column)),
+      status: date === props.today ? 'In progress' : planned ? 'Planned' : awaiting ? 'Awaiting import' : '',
+      measurements,
       intake: [formatValue(intake.calories, 0), formatValue(intake.protein, 1), formatValue(intake.fat, 1), formatValue(intake.carbs, 1)],
-      source: intake.source ? `${sourceLabels[intake.source]}${intake.entries !== null ? ` (${intake.entries})` : ''}` : '—',
+      source: intake.source ? `${sourceLabels[intake.source]}${intake.entries !== null ? ` (${intake.entries})` : ''}${incomplete ? ' · marked incomplete' : ''}` : '—',
       trailing: trailingColumns.map((column) => cell(domains, column)),
       planned,
     };
@@ -64,4 +74,5 @@ const rows = computed(() => {
       </tbody>
     </table>
   </div>
+  <p v-if="anyWarning" class="muted table-note">† MacroFactor's trend weight and expenditure on these dates may reflect a questioned weigh-in; excluding it here does not change those estimates.</p>
 </template>

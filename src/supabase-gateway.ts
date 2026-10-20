@@ -7,6 +7,7 @@ import {
 import type { DailyDomain, DailyValues } from './import/workbook';
 import type { FoodEntry, FoodSource } from './import/food';
 import type { WorkoutSet, WorkoutSource } from './import/workout';
+import type { CompletenessStatus, ReviewChoice, ReviewState } from './analysis/eligibility';
 
 const archiveBucket = 'source-archives';
 
@@ -65,10 +66,19 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
       if (error) throw error;
     },
     async loadHistory(): Promise<ImportedHistory> {
-      const { data, error } = await client.rpc('active_history');
-      if (error) throw error;
-      if (!data) throw new Error('Saved history is unavailable for this account.');
-      return decodeHistory(data);
+      const [history, review] = await Promise.all([client.rpc('active_history'), client.rpc('review_state')]);
+      if (history.error) throw history.error;
+      if (review.error) throw review.error;
+      if (!history.data || !review.data) throw new Error('Saved history is unavailable for this account.');
+      return { ...decodeHistory(history.data), review: decodeReview(review.data) };
+    },
+    async saveReviewDecision(decision) {
+      const { error } = await client.from('review_decisions').insert({ record_date: decision.date, domain: decision.domain, field: decision.field, value: decision.value, decision: decision.decision });
+      if (error) throw translateError(error);
+    },
+    async saveCompleteness(mark) {
+      const { error } = await client.from('completeness_marks').insert({ mark_date: mark.date, domain: mark.domain, status: mark.status });
+      if (error) throw translateError(error);
     },
     async loadFoodDay(date): Promise<SavedFoodDay | null> {
       const { data, error } = await client.rpc('food_day_entries', { p_date: date });
@@ -216,7 +226,16 @@ function decodeChange(value: unknown): ChangeResult {
   };
 }
 
-function decodeHistory(value: unknown): ImportedHistory {
+function decodeReview(value: unknown): ReviewState {
+  const state = value as { decisions?: Array<Record<string, unknown>>; completeness?: Array<Record<string, unknown>> };
+  return {
+    decisions: (state.decisions ?? []).map((item) => ({ date: String(item.date), domain: 'scale_weight', field: String(item.field), value: Number(item.value),
+      decision: item.decision as ReviewChoice, decidedAt: String(item.decided_at) })),
+    completeness: (state.completeness ?? []).map((item) => ({ date: String(item.date), domain: 'nutrition', status: item.status as CompletenessStatus, decidedAt: String(item.decided_at) })),
+  };
+}
+
+function decodeHistory(value: unknown): Omit<ImportedHistory, 'review'> {
   const history = value as {
     revision_id: number | null; records: Array<Record<string, unknown>>; food_days?: Array<Record<string, unknown>>; workout_days?: Array<Record<string, unknown>>;
     exercise_names?: Array<Record<string, unknown>>; aliases?: Record<string, string>; imports: Array<Record<string, unknown>>; undo_target_id?: string | null;
