@@ -1,6 +1,6 @@
 # 04: Import detailed food records without double-counting
 
-**Status:** in-progress (implemented 2026-10-20; live migration and owner import pending)
+**Status:** done (live verified 2026-10-20)
 
 **What to build:** Select a food CSV, workbook food details, or both and browse the saved food entries and their daily totals. Inspect disagreements with daily workbook nutrition in the same preview.
 
@@ -8,12 +8,12 @@
 
 **Acceptance criteria:**
 
-- [ ] Parse BOM-prefixed CSV, quoted fields, local food times, units, and missing nutrients. Source row multiplicity is preserved, including legitimately identical foods.
-- [ ] Food CSV wins on overlapping represented dates when provided; workbook food detail is fallback. Daily totals without detail remain available with workbook source attribution.
-- [ ] Workbook totals and detailed sums are never added together. Reconciliation flags differences exceeding the specification's tolerance and requires acceptance of the documented source winner.
-- [ ] Food-only imports do not replace weight, expenditure, targets, steps, or workout data. Missing dates do not erase food history.
-- [ ] Preview, correction, repeat-import handling, and undo work for granular records through the existing import workflow.
-- [ ] Future entries remain identifiable by source date/import metadata, never advertised as confirmed consumed food. The eligibility workflow is completed in 06.
+- [x] Parse BOM-prefixed CSV, quoted fields, local food times, units, and missing nutrients. Source row multiplicity is preserved, including legitimately identical foods.
+- [x] Food CSV wins on overlapping represented dates when provided; workbook food detail is fallback. Daily totals without detail remain available with workbook source attribution.
+- [x] Workbook totals and detailed sums are never added together. Reconciliation flags differences exceeding the specification's tolerance and requires acceptance of the documented source winner.
+- [x] Food-only imports do not replace weight, expenditure, targets, steps, or workout data. Missing dates do not erase food history.
+- [x] Preview, correction, repeat-import handling, and undo work for granular records through the existing import workflow.
+- [x] Future entries remain identifiable by source date/import metadata, never advertised as confirmed consumed food. The eligibility workflow is completed in 06.
 
 **Verification evidence:** Supplied food CSV has 5,064 rows, including 56 future-dated entries relative to its September 13 export. Keep private input validation separate from public synthetic fixtures.
 
@@ -30,3 +30,9 @@ Verified locally:
 - Full suite: 52 unit/UI/database tests and 5 browser tests; typecheck and both production builds pass.
 
 Not yet verified live: the migration on Supabase, uploading the ~1 MB CSV and committing the ~2 MB payload through the hosted API, and browsing the result on the owner's devices.
+
+## Live verification (2026-10-20)
+
+- Database migrations run 39441997630 applied `202610200002_food_detail.sql`; Check run 39441997754 and Deploy GitHub Pages run 39442196205 passed.
+- Anonymous calls to `commit_sources` and `food_day_entries`, reads of `food_days`, and CSV uploads to the archive are refused.
+- The owner imported the workbook and the all-time food CSV together on the hosted app and reported that it worked, including browsing the result (owner-reported). This exercised the ~1 MB CSV upload and ~2 MB commit through the hosted API.
