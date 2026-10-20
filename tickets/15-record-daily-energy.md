@@ -1,6 +1,6 @@
 # 15: Record daily energy
 
-**Status:** proposed (owner idea, 2026-10-20; not yet scheduled)
+**Status:** deferred (owner idea, 2026-10-20; scheduled after the current backlog)
 
 **Owner request:** A quick way to choose a date and record how I felt that day, picking from a small set of energy levels rather than typing text, so energy can later be compared with workouts, nutrition, and other daily data.
 
@@ -26,3 +26,9 @@
 - [ ] Ratings survive imports, corrections, and import undo unchanged.
 
 **Scope decision needed (comparison with other data):** SPEC.md section 2 lists "correlations and causal explanations" as not included initially. Recording energy does not conflict with that. Comparing energy with workouts and nutrition does, so it needs the owner's explicit approval as a spec change before it is built. A descriptive option consistent with the spec's style would be a follow-up ticket that shows, for example, average energy on training days vs rest days or on surplus vs deficit days, with counts and coverage, labeled as observations and never as causes. Statistical correlation measures would be a further decision.
+
+## Owner decisions (2026-10-20)
+
+- The five levels (Very low, Low, Okay, Good, Great) are accepted.
+- The check-in is deferred until after the current backlog.
+- The comparison follow-up (and the related SPEC change) is not yet decided.
