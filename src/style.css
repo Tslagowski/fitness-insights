@@ -256,6 +256,13 @@ main:focus { outline: 0; }
 .expenditure-dot { fill: var(--series-expenditure); stroke: var(--chart-surface); stroke-width: 2; }
 .target-line { fill: none; stroke: var(--target-ink); stroke-width: 2; stroke-linejoin: round; }
 .hit { fill: transparent; cursor: pointer; }
+.restore-block { border-top: 1px solid #e6eadf; margin-top: 22px; padding-top: 18px; }
+.restore-block h3 { font-size: 15px; }
+.restore-block .file-picker { flex-direction: column; align-items: flex-start; gap: 6px; }
+input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
+.restore-preview { margin-top: 12px; }
+.restore-preview .period-table th[scope=row] { white-space: normal; position: static; }
+.restore-preview .period-table :is(th, td) { padding: 8px 10px; }
 .report-list li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 8px 0; border-bottom: 1px solid #eef1e9; }
 .report-list li .report-line { color: #233b37; }
 .report-list li button { grid-row: 1 / span 2; grid-column: 2; align-self: center; }

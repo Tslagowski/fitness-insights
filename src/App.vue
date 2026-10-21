@@ -17,6 +17,7 @@ import ExerciseProgress from './components/ExerciseProgress.vue';
 import WrittenOverview from './components/WrittenOverview.vue';
 import ReportHistory from './components/ReportHistory.vue';
 import RetentionPanel from './components/RetentionPanel.vue';
+import BackupPanel from './components/BackupPanel.vue';
 import type { WrittenReport } from './analysis/report';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
@@ -228,6 +229,8 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <CorrectDay v-if="gateway && historyState === 'ready' && hasHistory" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
             <ChangeHistory v-if="gateway && historyState === 'ready' && history.imports.length" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
             <RetentionPanel v-if="gateway && historyState === 'ready' && history.revisionId !== null" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
+            <BackupPanel v-if="gateway" :gateway="gateway" :history="history" :preferences="preferences" :reload-history="reloadHistory"
+              @preferences-restored="(saved) => { preferences = saved; draftDensity = saved.displayDensity; draftDurationUnit = saved.durationUnit; draftBand = saved.strengthBandPercent; }" />
             <section class="section-card"><div class="section-heading"><div><div class="eyebrow">MAKE IT YOURS</div><h2>Display preferences</h2></div><span class="outline-pill">Saved to your account</span></div>
               <form @submit.prevent="save"><label class="field-label" for="density">Display density</label><p class="field-help">Choose how much space to leave between records.</p>
                 <select id="density" aria-label="Display density" v-model="draftDensity" :disabled="saving"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select>

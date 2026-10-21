@@ -7,6 +7,9 @@ import {
 import type { DailyDomain, DailyValues } from './import/workbook';
 import type { FoodEntry, FoodSource } from './import/food';
 import type { WorkoutSet, WorkoutSource } from './import/workout';
+import { archivePath } from './import/sources';
+import { backupTables, type BackupData, type BackupTable } from './backup/backup';
+import type { CapacityStatus } from './backup/capacity';
 import type { CompletenessStatus, ReviewChoice, ReviewState } from './analysis/eligibility';
 
 const archiveBucket = 'source-archives';
@@ -134,6 +137,47 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
         retainedFromRevisionId: id(result.retained_from_revision_id), dailyRecords: Number(result.daily_records ?? 0), foodDays: Number(result.food_days ?? 0),
         workoutDays: Number(result.workout_days ?? 0), reports: Number(result.reports ?? 0) };
     },
+    async capacity(): Promise<CapacityStatus> {
+      const { data, error } = await client.rpc('capacity_status');
+      if (error) throw translateError(error);
+      const result = data as Record<string, unknown>;
+      return { databaseBytes: Number(result.database_bytes), databaseLimitBytes: Number(result.database_limit_bytes), archiveBytes: Number(result.archive_bytes),
+        archiveLimitBytes: Number(result.archive_limit_bytes), stagingBytes: Number(result.staging_bytes ?? 0) };
+    },
+    async workspaceCounts() {
+      const { data, error } = await client.rpc('workspace_counts');
+      if (error) throw translateError(error);
+      return Object.fromEntries(backupTables.map((table) => [table, Number((data as Record<string, unknown>)[table] ?? 0)])) as Record<BackupTable, number>;
+    },
+    async exportBackupData(): Promise<BackupData> {
+      const { data, error } = await client.rpc('export_backup');
+      if (error) throw translateError(error);
+      const result = data as { schema_version: number; tables: BackupData['tables']; workspace_state: BackupData['workspaceState'] };
+      return { schemaVersion: result.schema_version, tables: result.tables, workspaceState: result.workspace_state };
+    },
+    async downloadArchive(path) {
+      const { data, error } = await client.storage.from(archiveBucket).download(path);
+      if (error || !data) throw new Error(`The original export at ${path} could not be downloaded.`);
+      return new Uint8Array(await data.arrayBuffer());
+    },
+    async uploadArchive(path, bytes, mediaType) {
+      const { error } = await client.storage.from(archiveBucket).upload(path, new Blob([bytes as BlobPart], { type: mediaType }), { contentType: mediaType, upsert: false });
+      if (error && !isAlreadyStored(error)) throw new Error(`The original export at ${path} could not be stored.`);
+    },
+    async stageRestoreChunk(restoreId, table, chunk, rows) {
+      const { error } = await client.rpc('stage_restore_chunk', { p_restore_id: restoreId, p_table: table, p_chunk: chunk, p_rows: rows });
+      if (error) throw translateError(error);
+    },
+    async applyRestore(restoreId, expectedRevisionId, manifest, dryRun) {
+      const { data, error } = await client.rpc('apply_restore', { p_restore_id: restoreId, p_expected_revision_id: expectedRevisionId,
+        p_manifest: { schema_version: manifest.schema_version, counts: manifest.counts, workspace_state: manifest.workspace_state }, p_dry_run: dryRun });
+      if (error) throw translateError(error);
+      return (data as { counts: Record<BackupTable, number> }).counts;
+    },
+    async discardRestore(restoreId) {
+      const { error } = await client.rpc('discard_restore', { p_restore_id: restoreId });
+      if (error) throw translateError(error);
+    },
     async saveExerciseAlias(sourceName, displayName) {
       const { error } = displayName && displayName.trim()
         ? await client.from('exercise_aliases').upsert({ source_name: sourceName, display_name: displayName.trim(), updated_at: new Date().toISOString() }, { onConflict: 'source_name' })
@@ -221,10 +265,6 @@ function isAlreadyStored(error: { message?: string; status?: number; statusCode?
   return error.status === 409 || error.statusCode === '409' || /already exists/i.test(error.message ?? '');
 }
 
-function archivePath(source: SourceFile): string {
-  if (source.kind === 'workbook') return `workbooks/${source.sha256}.xlsx`;
-  return source.kind === 'food_csv' ? `food-csv/${source.sha256}.csv` : `workout-csv/${source.sha256}.csv`;
-}
 
 function sourcesPayload(request: SourcesRequest) {
   return {

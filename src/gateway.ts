@@ -4,6 +4,8 @@ import type { SourceKind } from './import/sources';
 import type { DurationUnit, WorkoutDay, WorkoutSet, WorkoutSource } from './import/workout';
 import { emptyReviewState, type CompletenessStatus, type ReviewChoice, type ReviewState } from './analysis/eligibility';
 import type { WrittenReport } from './analysis/report';
+import type { BackupData, BackupManifest, BackupTable } from './backup/backup';
+import type { CapacityStatus } from './backup/capacity';
 
 export type DisplayDensity = 'comfortable' | 'compact';
 
@@ -48,6 +50,22 @@ export interface Gateway {
   loadReport(id: string): Promise<SavedReport | null>;
   /** What retention would remove (dry run), or removes it when apply is true. */
   retention(expectedRevisionId: number | null, apply: boolean): Promise<RetentionSummary>;
+  /** Database and archive usage against the free-tier limits. */
+  capacity(): Promise<CapacityStatus>;
+  /** Row counts per backed-up table. */
+  workspaceCounts(): Promise<Record<BackupTable, number>>;
+  /** Every backed-up table row, the active and retained revisions, with no user ids. */
+  exportBackupData(): Promise<BackupData>;
+  /** One original export from the private archive. */
+  downloadArchive(path: string): Promise<Uint8Array>;
+  /** Stores an original export at its content-addressed path; an existing identical file is fine. */
+  uploadArchive(path: string, bytes: Uint8Array, mediaType: string): Promise<void>;
+  /** Uploads one chunk of a restore to private staging (retrying a chunk replaces it). */
+  stageRestoreChunk(restoreId: string, table: BackupTable, chunk: number, rows: Array<Record<string, unknown>>): Promise<void>;
+  /** Validates staged rows against the manifest and, unless dryRun, replaces all saved history atomically. */
+  applyRestore(restoreId: string, expectedRevisionId: number | null, manifest: BackupManifest, dryRun: boolean): Promise<Record<BackupTable, number>>;
+  /** Removes a restore's staged chunks. */
+  discardRestore(restoreId: string): Promise<void>;
   /** Sets (or, with null, removes) the cosmetic display name for a logged exercise name. Raw records are unchanged. */
   saveExerciseAlias(sourceName: string, displayName: string | null): Promise<void>;
   /** Records the owner's decision about one specific saved value (latest decision wins). */

@@ -51,6 +51,12 @@ export interface ImportPlan {
 
 export class ImportPlanError extends Error {}
 
+/** Content-addressed path of a raw export in the private source-archives bucket. */
+export function archivePath(source: { kind: SourceKind; sha256: string }): string {
+  if (source.kind === 'workbook') return `workbooks/${source.sha256}.xlsx`;
+  return source.kind === 'food_csv' ? `food-csv/${source.sha256}.csv` : `workout-csv/${source.sha256}.csv`;
+}
+
 export const mediaTypes: Record<SourceKind, string> = {
   workbook: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   food_csv: 'text/csv',

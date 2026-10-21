@@ -10,6 +10,9 @@ import type { DailyDomain, DailyValues } from '../../src/import/workbook';
 import { calorieTolerance, foodDayTotals, type FoodEntry, type FoodSource } from '../../src/import/food';
 import { sameValues } from '../../src/import/preview';
 import type { WrittenReport } from '../../src/analysis/report';
+import { backupTables, type BackupData, type BackupManifest, type BackupTable } from '../../src/backup/backup';
+import type { CapacityStatus } from '../../src/backup/capacity';
+import { archivePath } from '../../src/import/sources';
 
 interface Span { introduced: number; retired: number | null }
 interface Row extends Span { date: string; domain: DailyDomain; values: DailyValues; sourceFileId: string }
@@ -45,6 +48,11 @@ export class MemoryGateway implements Gateway {
   private nextRevision = 1;
   reports: SavedReport[] = [];
   retainedFrom: number | null = null;
+  sourceFiles: Array<Record<string, unknown>> = [];
+  archives = new Map<string, Uint8Array>();
+  capacityStatus: CapacityStatus = { databaseBytes: 40_000_000, databaseLimitBytes: 524_288_000, archiveBytes: 5_000_000, archiveLimitBytes: 1_073_741_824, stagingBytes: 0 };
+  staging = new Map<string, Map<string, Array<Record<string, unknown>>>>();
+  failArchiveDownload = false;
   /** Commit time of the next change; tests whose dates are relative to today set it to Date.now(). */
   clock = Date.UTC(2026, 9, 20, 15);
 
@@ -146,6 +154,11 @@ export class MemoryGateway implements Gateway {
     const applied = [...plan.daily, ...plan.food, ...plan.workouts].filter((item) => item.status === 'added' || item.status === 'changed');
     const revision = applied.length ? this.newRevision() : null;
     const sourceId = (kind: string) => request.sources.find((source) => source.kind === kind)?.sha256 ?? kind;
+    for (const source of request.sources) {
+      if (this.sourceFiles.some((file) => file.sha256 === source.sha256)) continue;
+      this.sourceFiles.push({ id: source.sha256, sha256: source.sha256, file_name: source.name, byte_size: source.byteSize, media_type: source.mediaType, storage_path: archivePath(source), received_at: new Date(this.clock).toISOString() });
+      this.archives.set(archivePath(source), source.bytes);
+    }
     for (const item of plan.daily) {
       if (item.status !== 'added' && item.status !== 'changed') continue;
       if (item.existing) item.existing.retired = revision;
@@ -249,6 +262,85 @@ export class MemoryGateway implements Gateway {
     }
     return { ...summary, retainedFromRevisionId: this.retainedFrom };
   }
+
+  async capacity(): Promise<CapacityStatus> {
+    if (this.failReads) throw new Error('Network unavailable');
+    return { ...this.capacityStatus };
+  }
+
+  async workspaceCounts() {
+    const data = await this.exportBackupData();
+    return Object.fromEntries(backupTables.map((table) => [table, data.tables[table].length])) as Record<BackupTable, number>;
+  }
+
+  async exportBackupData(): Promise<BackupData> {
+    if (this.failReads) throw new Error('Network unavailable');
+    const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+    return {
+      schemaVersion: 1,
+      workspaceState: { active_revision_id: this.revisionId, retained_from_revision_id: this.retainedFrom },
+      tables: {
+        source_files: copy(this.sourceFiles),
+        data_revisions: Array.from({ length: this.nextRevision - 1 }, (_, index) => ({ id: index + 1 })),
+        import_batches: copy(this.events) as unknown as Array<Record<string, unknown>>,
+        import_batch_sources: [],
+        daily_records: copy(this.rows) as unknown as Array<Record<string, unknown>>,
+        food_days: copy(this.food) as unknown as Array<Record<string, unknown>>,
+        workout_days: copy(this.workouts) as unknown as Array<Record<string, unknown>>,
+        reports: copy(this.reports) as unknown as Array<Record<string, unknown>>,
+        exercise_aliases: Object.entries(this.aliases).map(([source_name, display_name]) => ({ source_name, display_name })),
+        review_decisions: copy(this.review.decisions) as unknown as Array<Record<string, unknown>>,
+        completeness_marks: copy(this.review.completeness) as unknown as Array<Record<string, unknown>>,
+      },
+    };
+  }
+
+  async downloadArchive(path: string) {
+    const bytes = this.archives.get(path);
+    if (!bytes || this.failArchiveDownload) throw new Error(`The original export at ${path} could not be downloaded.`);
+    return bytes;
+  }
+
+  async uploadArchive(path: string, bytes: Uint8Array) {
+    if (this.failWrites) throw new Error('Network unavailable');
+    if (!this.archives.has(path)) this.archives.set(path, bytes);
+  }
+
+  async stageRestoreChunk(restoreId: string, table: BackupTable, chunk: number, rows: Array<Record<string, unknown>>) {
+    this.calls.push({ method: 'stageRestoreChunk', expectedRevisionId: null });
+    if (this.failWrites) throw new Error('Network unavailable');
+    if (!this.staging.has(restoreId)) this.staging.set(restoreId, new Map());
+    this.staging.get(restoreId)!.set(`${table}|${chunk}`, JSON.parse(JSON.stringify(rows)));
+  }
+
+  async applyRestore(restoreId: string, expectedRevisionId: number | null, manifest: BackupManifest, dryRun: boolean) {
+    this.calls.push({ method: dryRun ? 'previewRestore' : 'applyRestore', expectedRevisionId });
+    if (!dryRun && this.failWrites) throw new Error('Network unavailable');
+    if (expectedRevisionId !== this.revisionId) throw new StaleRevisionError('stale');
+    const staged = this.staging.get(restoreId) ?? new Map();
+    const rows = (table: BackupTable) => [...staged.entries()].filter(([key]) => key.startsWith(`${table}|`))
+      .sort(([left], [right]) => Number(left.split('|')[1]) - Number(right.split('|')[1])).flatMap(([, value]) => value);
+    const counts = Object.fromEntries(backupTables.map((table) => [table, rows(table).length])) as Record<BackupTable, number>;
+    for (const table of backupTables) {
+      if (counts[table] !== manifest.counts[table]) throw new Error(`The uploaded backup is incomplete (${table}: ${counts[table]} of ${manifest.counts[table]} rows). Nothing was replaced; upload it again.`);
+    }
+    if (dryRun) return counts;
+    this.sourceFiles = rows('source_files');
+    this.events = rows('import_batches') as unknown as Event[];
+    this.rows = rows('daily_records') as unknown as Row[];
+    this.food = rows('food_days') as unknown as FoodRow[];
+    this.workouts = rows('workout_days') as unknown as WorkoutRow[];
+    this.reports = rows('reports') as unknown as SavedReport[];
+    this.aliases = Object.fromEntries(rows('exercise_aliases').map((row) => [String(row.source_name), String(row.display_name)]));
+    this.review = { decisions: rows('review_decisions') as unknown as ReviewState['decisions'], completeness: rows('completeness_marks') as unknown as ReviewState['completeness'] };
+    this.nextRevision = rows('data_revisions').length + 1;
+    this.revisionId = manifest.workspace_state.active_revision_id;
+    this.retainedFrom = manifest.workspace_state.retained_from_revision_id;
+    this.staging.delete(restoreId);
+    return counts;
+  }
+
+  async discardRestore(restoreId: string) { this.staging.delete(restoreId); }
 
   /** Simulates another device changing the shared history with a workbook-sourced daily import. */
   async otherDeviceImport(records: Array<{ date: string; domain: DailyDomain; values: DailyValues }>) {

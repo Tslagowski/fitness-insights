@@ -214,7 +214,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 09 | Exercise performance and workload | Implemented; owner review pending |
 | 10 | Evidence-backed written overview | Implemented; owner review pending |
 | 11 | Immutable report/import history | Implemented; owner review pending |
-| 12 | Portable backup and restore | Pending |
+| 12 | Portable backup and restore | Implemented; owner review pending |
 | 13 | Service/quota failure recovery | Pending |
 | 14 | Complete mobile and cross-device release verification | Pending |
 | 15 | Record daily energy (owner idea) | Deferred until after the backlog; five levels accepted; comparison scope undecided |
