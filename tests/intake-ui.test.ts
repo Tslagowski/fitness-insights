@@ -35,7 +35,7 @@ const tile = (app: VueWrapper, label: string) => app.findAll('.metric-tile').fin
 test('the 28-day view ends yesterday and compares against the previous 28 days', async () => {
   const app = await open(await seeded());
   const section = app.get('.intake-balance');
-  expect(section.get('#period-line').text()).toContain(`${formatCalendarDate(addDays(yesterday, -27))} – ${formatCalendarDate(yesterday)} (28 days)`);
+  expect(app.get('#period-line').text()).toContain(`${formatCalendarDate(addDays(yesterday, -27))} – ${formatCalendarDate(yesterday)} (28 days)`);
   expect(section.text()).toContain(`Ends at the latest past day with imported intake (${formatCalendarDate(yesterday)})`);
   // Four 3,500 kcal days and 24 at 2,200: kept in the distribution, not trimmed.
   expect(tile(app, 'Mean intake')).toContain('2,386 kcal');
@@ -69,10 +69,10 @@ test('below the threshold the headline is replaced by Insufficient coverage, whi
   expect(tile(app, 'Mean intake')).toContain('Insufficient coverage');
   expect(tile(app, 'Mean intake')).toContain('4 of 5 required eligible days');
   expect(app.get('[aria-label="Coverage"]').text()).toContain('4 of 7 days with counted intake · Insufficient coverage');
-  expect(app.text()).not.toContain('vs previous period');
+  expect(app.get('.intake-balance').text()).not.toContain('vs previous period');
   expect(app.findAll('.intake-bar')).toHaveLength(4);
-  expect(app.findAll('.period-table tbody tr')).toHaveLength(7);
-  expect(app.get('.period-table').text()).toContain('Not recorded');
+  expect(app.get('.intake-balance').findAll('.period-table tbody tr')).toHaveLength(7);
+  expect(app.get('.intake-balance .period-table').text()).toContain('Not recorded');
 });
 
 test('custom periods use 75% coverage and explain invalid ranges', async () => {

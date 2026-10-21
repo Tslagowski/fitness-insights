@@ -210,7 +210,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 05 | Workout import preserving logging conventions | Done; live verified 2026-10-20 (duration check is a ticket 14 gate) |
 | 06 | Suspicious-value and incomplete-day review | Implemented; live verification pending |
 | 07 | Intake and modeled energy balance | Implemented; owner review pending |
-| 08 | Weight and activity comparisons | Pending |
+| 08 | Weight and activity comparisons | Implemented; owner review pending |
 | 09 | Exercise performance and workload | Pending |
 | 10 | Evidence-backed written overview | Pending |
 | 11 | Immutable report/import history | Pending |

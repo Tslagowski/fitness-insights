@@ -1,21 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { ImportedHistory } from '../gateway';
-import { addDays, reasonLabels, type EligibilityReport, type Eligibility } from '../analysis/eligibility';
-import { analyzeIntake, anchorDate, customWindowProblem, intakeMethodVersion, type IntakeDay, type Period, type WindowChoice } from '../analysis/intake';
+import { reasonLabels, type EligibilityReport, type Eligibility } from '../analysis/eligibility';
+import { analyzeIntake, anchorDate, intakeMethodVersion, type IntakeDay, type Period, type WindowChoice } from '../analysis/intake';
 import { formatCalendarDate, plural } from '../import/preview';
 import IntakeCharts from './IntakeCharts.vue';
 
-const props = defineProps<{ history: ImportedHistory; report: EligibilityReport }>();
+const props = defineProps<{ history: ImportedHistory; report: EligibilityReport; choice: WindowChoice }>();
 
-const mode = ref<'7' | '28' | 'custom'>('28');
 const anchor = computed(() => anchorDate(props.report));
-const defaultEnd = computed(() => anchor.value ?? addDays(props.report.today, -1));
-const customStart = ref(addDays(defaultEnd.value, -27));
-const customEnd = ref(defaultEnd.value);
-const customProblem = computed(() => (mode.value === 'custom' ? customWindowProblem(customStart.value, customEnd.value, props.report.today) : null));
-const choice = computed<WindowChoice>(() => (mode.value === 'custom' ? { kind: 'custom', start: customStart.value, end: customEnd.value } : { kind: 'days', length: mode.value === '7' ? 7 : 28 }));
-const analysis = computed(() => analyzeIntake(props.history, props.report, choice.value));
+const analysis = computed(() => analyzeIntake(props.history, props.report, props.choice));
 const current = computed(() => analysis.value.current);
 const previous = computed(() => analysis.value.previous);
 
@@ -106,27 +100,13 @@ const freshness = computed(() => {
     <div class="section-heading"><div><div class="eyebrow">COMPLETED DAYS ONLY</div><h2 id="intake-heading">Intake and modeled energy balance</h2></div>
       <span class="outline-pill">Method {{ intakeMethodVersion }}</span></div>
 
-    <div class="period-controls">
-      <div class="segmented" role="group" aria-label="Period length">
-        <button type="button" :aria-pressed="mode === '7'" @click="mode = '7'">7 days</button>
-        <button type="button" :aria-pressed="mode === '28'" @click="mode = '28'">28 days</button>
-        <button type="button" :aria-pressed="mode === 'custom'" @click="mode = 'custom'">Custom</button>
-      </div>
-      <div v-if="mode === 'custom'" class="custom-range">
-        <div><label class="field-label" for="custom-start">From</label><input id="custom-start" v-model="customStart" type="date" :max="addDays(report.today, -1)" /></div>
-        <div><label class="field-label" for="custom-end">Through</label><input id="custom-end" v-model="customEnd" type="date" :max="addDays(report.today, -1)" /></div>
-      </div>
-    </div>
-    <div v-if="customProblem" class="alert error" role="alert">{{ customProblem }}</div>
-
-    <p v-else-if="!current" class="field-help">There is no completed past day with imported intake yet, so there is no period to analyze. Import food entries or a workbook made after the days you want to include.</p>
+    <p v-if="!current" class="field-help">There is no completed past day with imported intake yet, so there is no period to analyze. Import food entries or a workbook made after the days you want to include.</p>
 
     <template v-else-if="current && previous">
-      <p id="period-line" class="period-line"><strong>{{ range(current) }}</strong> ({{ plural(current.length, 'day') }}), compared with {{ range(previous) }}.</p>
       <p class="field-help">
-        <template v-if="mode !== 'custom'">Ends at the latest past day with imported intake ({{ anchor ? formatCalendarDate(anchor) : '—' }}). </template>
+        <template v-if="choice.kind === 'days'">Ends at the latest past day with imported intake ({{ anchor ? formatCalendarDate(anchor) : '—' }}). </template>
         <template v-if="freshness">Freshness: {{ freshness }}. </template>
-        Headline values need {{ current.required }} of {{ current.length }} days in each period{{ mode === 'custom' && current.length !== 7 && current.length !== 28 ? ' (75% of the period, rounded up)' : '' }}.
+        Headline values need {{ current.required }} of {{ current.length }} days in each period{{ current.length !== 7 && current.length !== 28 ? ' (75% of the period, rounded up)' : '' }}.
       </p>
       <ul class="coverage-chips" aria-label="Coverage">
         <li :class="{ short: !current.intakeCovered }"><strong>{{ current.intake.count }}</strong> of {{ current.length }} days with counted intake<span v-if="!current.intakeCovered"> · Insufficient coverage</span></li>

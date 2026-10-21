@@ -13,6 +13,9 @@ test('on a phone, the owner reads intake and modeled balance and opens one day',
       { date, domain: 'nutrition_totals', fields: { 'Calories (kcal)': calories }, source_file_id: 'f', revision_id: 1 },
       { date, domain: 'expenditure', fields: { Expenditure: 2500 }, source_file_id: 'f', revision_id: 1 },
       { date, domain: 'targets', fields: { 'Target Calories (kcal)': 2400 }, source_file_id: 'f', revision_id: 1 },
+      ...(index % 3 === 1 ? [] : [{ date, domain: 'scale_weight', fields: { 'Weight (lb)': 201 - 0.1 * index }, source_file_id: 'f', revision_id: 1 }]),
+      { date, domain: 'trend_weight', fields: { 'Trend Weight (lb)': 200 - 0.1 * index }, source_file_id: 'f', revision_id: 1 },
+      { date, domain: 'steps', fields: { Steps: 7000 + (index % 5) * 800 }, source_file_id: 'f', revision_id: 1 },
     ];
   }).flat();
   const imports = [{ id: 'i1', kind: 'import', committed_at: new Date().toISOString(), outcome: 'changed', revision_id: 1, added: records.length, changed: 0, unchanged: 0, removed: 0, undone: false, file_names: ['export.xlsx'] }];
@@ -39,6 +42,7 @@ test('on a phone, the owner reads intake and modeled balance and opens one day',
   await page.goto('./#nutrition');
 
   const section = page.locator('section', { has: page.getByRole('heading', { name: 'Intake and modeled energy balance' }) });
+  const picker = page.locator('section.period-card');
   await expect(section.getByLabel('Intake metrics')).toContainText('2,386 kcal');
   await expect(section.getByLabel('Modeled balance metrics')).toContainText('−3,200 kcal');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -52,9 +56,18 @@ test('on a phone, the owner reads intake and modeled balance and opens one day',
   await chart.click({ position: { x: 44 + band * 26.5, y: 100 } });
   await expect(section.getByLabel('Selected day')).toContainText('3,500 − 2,500 = +1,000 kcal (surplus)');
 
-  await section.getByRole('button', { name: '7 days' }).click();
-  await expect(section.locator('#period-line')).toContainText('(7 days)');
+  await picker.getByRole('button', { name: '7 days' }).click();
+  await expect(picker.locator('#period-line')).toContainText('(7 days)');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await section.locator('.intake-charts').screenshot({ path: 'test-results/mobile-intake-charts-7.png' });
+
+  // Weight and activity share the same period; scale gaps stay gaps.
+  await picker.getByRole('button', { name: '28 days' }).click();
+  const weight = page.locator('section', { has: page.getByRole('heading', { name: 'Weight and activity' }) });
+  await expect(weight.getByLabel('Weight and activity metrics')).toContainText('−0.70 lb/week');
+  await expect(weight.getByLabel('Weight and activity metrics')).toContainText('Insufficient coverage');
+  await expect(weight.locator('.scale-dot')).toHaveCount(18);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await weight.screenshot({ path: 'test-results/mobile-weight-activity.png' });
   await context.close();
 });

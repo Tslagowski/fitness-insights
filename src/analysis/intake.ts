@@ -8,19 +8,13 @@
  */
 import type { ImportedHistory } from '../gateway';
 import { addDays, median, type DayStatus, type Eligibility, type EligibilityReport } from './eligibility';
+import { anchorDate, daysBetween, populationSd, requiredDays, resolvePeriod, type WindowChoice } from './periods';
+
+export { anchorDate, customWindowProblem, daysBetween, maximumWindowDays, populationSd, requiredDays, type WindowChoice } from './periods';
 
 export const intakeMethodVersion = 'intake-balance-v1';
 export const expenditureField = 'Expenditure';
 export const targetField = 'Target Calories (kcal)';
-export const maximumWindowDays = 366;
-
-/** Eligible days a period needs before headline values and comparisons are shown. */
-export function requiredDays(length: number): number {
-  if (length === 7) return 5;
-  if (length === 28) return 21;
-  return Math.ceil(0.75 * length);
-}
-
 export interface IntakeDay {
   date: string;
   intake: number | null;
@@ -80,27 +74,6 @@ export interface IntakeAnalysis {
   intakeShift: Shift | null;
   /** Present only when both periods pass the matched-day coverage gate. */
   balanceShift: BalanceShift | null;
-}
-
-export type WindowChoice = { kind: 'days'; length: 7 | 28 } | { kind: 'custom'; start: string; end: string };
-
-const timingReasons = new Set(['future', 'in-progress', 'after-import-cutoff']);
-
-/** Default end date: the latest past day with intake whose import has been confirmed (never today or later). */
-export function anchorDate(report: EligibilityReport): string | null {
-  const candidates = report.days.filter((day) => day.date < report.today && day.intakeSource
-    && (day.intake.eligible || !timingReasons.has(day.intake.reason)));
-  return candidates.at(-1)?.date ?? null;
-}
-
-export function daysBetween(start: string, end: string): number {
-  const toUtc = (date: string) => { const [year, month, day] = date.split('-').map(Number); return Date.UTC(year, month - 1, day); };
-  return Math.round((toUtc(end) - toUtc(start)) / 86_400_000) + 1;
-}
-
-export function populationSd(values: number[]): number {
-  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-  return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length);
 }
 
 function buildDays(history: ImportedHistory, report: EligibilityReport, start: string, end: string): IntakeDay[] {
@@ -168,32 +141,12 @@ export function summarize(days: IntakeDay[], start: string, end: string): Period
 
 const difference = (left: number | null, right: number | null) => (left === null || right === null ? null : left - right);
 
-/** Validates a custom window; returns a message for the owner or null when it is usable. */
-export function customWindowProblem(start: string, end: string, today: string): string | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) return 'Choose both a start and an end date.';
-  if (start > end) return 'The start date must be on or before the end date.';
-  if (end >= today) return 'Custom periods must end before today; today is still in progress.';
-  if (daysBetween(start, end) > maximumWindowDays) return `Custom periods can be at most ${maximumWindowDays} days.`;
-  return null;
-}
-
 export function analyzeIntake(history: ImportedHistory, report: EligibilityReport, choice: WindowChoice): IntakeAnalysis {
   const anchor = anchorDate(report);
-  let start: string;
-  let end: string;
-  if (choice.kind === 'custom') {
-    if (customWindowProblem(choice.start, choice.end, report.today)) return { method: intakeMethodVersion, anchor, current: null, previous: null, intakeShift: null, balanceShift: null };
-    ({ start, end } = choice);
-  } else {
-    if (!anchor) return { method: intakeMethodVersion, anchor, current: null, previous: null, intakeShift: null, balanceShift: null };
-    end = anchor;
-    start = addDays(anchor, -(choice.length - 1));
-  }
-  const length = daysBetween(start, end);
-  const previousEnd = addDays(start, -1);
-  const previousStart = addDays(previousEnd, -(length - 1));
-  const current = summarize(buildDays(history, report, start, end), start, end);
-  const previous = summarize(buildDays(history, report, previousStart, previousEnd), previousStart, previousEnd);
+  const bounds = resolvePeriod(choice, anchor, report.today);
+  if (!bounds) return { method: intakeMethodVersion, anchor, current: null, previous: null, intakeShift: null, balanceShift: null };
+  const current = summarize(buildDays(history, report, bounds.start, bounds.end), bounds.start, bounds.end);
+  const previous = summarize(buildDays(history, report, bounds.previousStart, bounds.previousEnd), bounds.previousStart, bounds.previousEnd);
   const intakeShift = current.intakeCovered && previous.intakeCovered ? {
     mean: difference(current.intake.mean, previous.intake.mean),
     median: difference(current.intake.median, previous.intake.median),

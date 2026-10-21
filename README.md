@@ -59,11 +59,13 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 - `src/supabase-gateway.ts`: OAuth, preference, archive upload, and import transport.
 - `src/import/`: workbook reading (`xlsx.ts`), CSV reading (`csv.ts`), MacroFactor daily records (`workbook.ts`), food entries (`food.ts`), workout sets and sessions (`workout.ts`), multi-file import plans (`sources.ts`), and preview helpers (`preview.ts`).
 - `src/analysis/eligibility.ts`: completed-day eligibility, import cutoffs, weight review flags, and completeness (ticket 06), shared by later analysis.
+- `src/analysis/periods.ts`: shared 7/28/custom periods, coverage gates, and the least-squares slope.
+- `src/analysis/trends.ts`: scale weight, trend-weight rate, and steps per period (ticket 08).
 - `src/analysis/intake.ts`: intake distribution, target difference, and modeled energy balance per period with coverage gates (ticket 07).
 - `src/components/`: the data status, review queue, and incomplete-days panels, the import panel, daily history table, food log, training log with exercise aliases, Correct a day panel, and change history with Undo.
 - `supabase/migrations`: owner allowlist, row-level access rules, revisioned daily history with the atomic `commit_import` function, and the private source archive bucket.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is done; ticket 06 is deployed and awaiting owner review; ticket 07 is implemented and awaiting owner review.
+- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is done; ticket 06 is deployed and awaiting owner review; tickets 07 and 08 are implemented and awaiting owner review.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.
@@ -187,4 +189,16 @@ Nutrition & Weight opens with **Intake and modeled energy balance**, computed by
 - **Coverage:** each period needs 5 of 7 or 21 of 28 days, otherwise 75% of its length rounded up: counted days for intake metrics, matched days for balance metrics. Below that, the headline reads Insufficient coverage, comparisons are withheld, and the charts and date list stay available.
 - **Charts** (intake columns with expenditure and target lines; daily modeled balance) read the same rows as the metrics. Tapping a day, or using the arrow keys, shows its values, status, and formulas. "Dates behind these numbers" lists every date in the period, and "How these are calculated" lists the formulas.
 - Modeled balance is labeled as an estimate built from MacroFactor's expenditure estimate, never as measured fat or weight change.
+
+One period picker at the top of Nutrition & Weight scopes every section, so they always describe the same dates.
+
+## Weight and activity (ticket 08)
+
+`src/analysis/trends.ts` (method `weight-activity-v1`) reads the same eligibility results and period:
+
+- **Scale weight** points and MacroFactor's **trend weight** are separate series; the trend is never rebuilt from weigh-ins. Pending or excluded weigh-ins are drawn hollow and left out of the average. Missing days stay gaps.
+- **Trend weight rate** is 7 × the least-squares slope of eligible trend values against elapsed calendar days, shown only when the period passes the coverage gate.
+- **Steps** average observed eligible days only, with their own coverage; missing nutrition or workouts never hides weight or steps (when no intake exists, the period ends at the latest confirmed day with weight or steps).
+- Trend values that may reflect a questioned weigh-in keep their † warning after a scale value is excluded.
+- Tapping a day shows its scale, trend, and steps values with their status; the date table and formulas are listed below the charts.
 
