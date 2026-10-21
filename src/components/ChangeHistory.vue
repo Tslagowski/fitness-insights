@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { NothingToChangeError, StaleRevisionError, type Gateway, type ImportedHistory, type UndoPreview } from '../gateway';
+import { NothingToChangeError, RetentionLimitError, StaleRevisionError, type Gateway, type ImportedHistory, type UndoPreview } from '../gateway';
 import { describeChange, describeCounts, formatCalendarDate, newRequestId } from '../import/preview';
 
 const props = defineProps<{ gateway: Gateway; history: ImportedHistory; reloadHistory: () => Promise<boolean> }>();
@@ -54,6 +54,10 @@ async function handleFailure(error: unknown, fallback: string) {
     phase.value = 'idle';
     problem.value = 'Your saved history changed (possibly on another device), so nothing was undone. Review the latest changes below and try again.';
     await props.reloadHistory();
+  } else if (error instanceof RetentionLimitError) {
+    preview.value = null;
+    phase.value = 'idle';
+    problem.value = error.message;
   } else {
     problem.value = fallback;
   }

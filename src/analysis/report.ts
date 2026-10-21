@@ -224,3 +224,64 @@ export function canonicalJson(value: unknown): string {
   }
   return JSON.stringify(value ?? null);
 }
+
+/**
+ * Fingerprint of a report: its content and inputs except the day it was viewed, so revisiting an
+ * unchanged report never saves a duplicate, while any change in data, settings, review decisions,
+ * cutoffs, or methods produces a distinct report.
+ */
+export async function reportFingerprint(report: WrittenReport): Promise<string> {
+  const { reportDate: _viewed, ...inputs } = report.inputs;
+  const bytes = new TextEncoder().encode(canonicalJson({ inputs, sections: report.sections }));
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes as BufferSource);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export interface ReportComparison {
+  /** Differences in what the reports were computed from: imports, corrections, settings, review, methods. */
+  inputChanges: string[];
+  /** Statements whose wording or values differ, by section. */
+  findingChanges: Array<{ section: string; before: string | null; after: string | null }>;
+}
+
+/** Compares a saved report with another (usually the current one), keeping input changes apart from findings. */
+export function compareReports(before: WrittenReport, after: WrittenReport, history: ImportedHistory): ReportComparison {
+  const changes: string[] = [];
+  const a = before.inputs;
+  const b = after.inputs;
+  if (a.revisionId !== b.revisionId) {
+    const between = history.imports.filter((item) => item.revisionId !== null && item.outcome === 'changed'
+      && item.revisionId > (a.revisionId ?? 0) && item.revisionId <= (b.revisionId ?? 0)).reverse();
+    changes.push(`Saved data changed from version ${a.revisionId ?? 'none'} to ${b.revisionId ?? 'none'}${between.length ? ':' : '.'}`);
+    for (const item of between) changes.push(`• ${describeChange(item, history.imports)}${item.firstDate && item.lastDate ? ` (${range(item.firstDate, item.lastDate)})` : ''}`);
+  }
+  if (a.periodEnd !== b.periodEnd) changes.push(`The period end moved from ${a.periodEnd ? formatCalendarDate(a.periodEnd) : 'none'} to ${b.periodEnd ? formatCalendarDate(b.periodEnd) : 'none'}.`);
+  if (a.settings.strengthBandPercent !== b.settings.strengthBandPercent) changes.push(`Exercise label band changed from ±${a.settings.strengthBandPercent}% to ±${b.settings.strengthBandPercent}%.`);
+  if (a.settings.durationUnit !== b.settings.durationUnit) changes.push(`Workout durations are read as ${b.settings.durationUnit} instead of ${a.settings.durationUnit}.`);
+  const methods = (inputs: ReportInputs) => `${inputs.templateVersion}, ${inputs.methods.intake}, ${inputs.methods.trends}, ${inputs.methods.exercise}`;
+  if (methods(a) !== methods(b)) changes.push(`Calculation methods changed (${methods(a)} → ${methods(b)}).`);
+  const listDiff = (label: string, left: string[], right: string[], format: (item: string) => string) => {
+    const added = right.filter((item) => !left.includes(item));
+    const removed = left.filter((item) => !right.includes(item));
+    if (added.length) changes.push(`${label} added: ${added.map(format).join(', ')}.`);
+    if (removed.length) changes.push(`${label} removed: ${removed.map(format).join(', ')}.`);
+  };
+  const weighIn = (item: string) => { const [date, value] = item.split(':'); return `${value} lb on ${formatCalendarDate(date)}`; };
+  listDiff('Excluded weigh-ins', a.review.excluded, b.review.excluded, weighIn);
+  listDiff('Kept weigh-ins', a.review.kept, b.review.kept, weighIn);
+  listDiff('Weigh-ins pending review', a.review.pending, b.review.pending, weighIn);
+  listDiff('Days marked incomplete', a.review.incompleteDates, b.review.incompleteDates, (date) => formatCalendarDate(date));
+  if (canonicalJson(a.aliases) !== canonicalJson(b.aliases)) changes.push('Exercise display names (aliases) changed.');
+
+  const findings = (report: WrittenReport) => new Map(report.sections.flatMap((section) => section.findings.map((finding) => [finding.id, { section: section.title, text: finding.text }] as const)));
+  const left = findings(before);
+  const right = findings(after);
+  const findingChanges: ReportComparison['findingChanges'] = [];
+  for (const id of new Set([...left.keys(), ...right.keys()])) {
+    const old = left.get(id);
+    const now = right.get(id);
+    if (old?.text === now?.text) continue;
+    findingChanges.push({ section: (now ?? old)!.section, before: old?.text ?? null, after: now?.text ?? null });
+  }
+  return { inputChanges: changes, findingChanges };
+}

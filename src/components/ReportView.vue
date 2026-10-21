@@ -7,11 +7,12 @@ defineProps<{ report: WrittenReport; headingLevel?: 'h3' | 'h4' }>();
 
 const kindLabels: Record<FindingKind, string> = { observation: 'Calculated from your records', 'source-estimate': 'Uses a MacroFactor estimate', unavailable: 'Unavailable' };
 const pageLabels = { nutrition: 'Nutrition & Weight', training: 'Training', settings: 'Imports & Settings' } as const;
+const words = (key: string) => { const text = key.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase(); return text.charAt(0).toUpperCase() + text.slice(1); };
 function evidenceRows(evidence: Evidence): Array<[string, string]> {
   const rows: Array<[string, string]> = [['Method', evidence.method]];
   if (evidence.window) rows.push(['Period', `${formatCalendarDate(evidence.window.start)} – ${formatCalendarDate(evidence.window.end)} vs ${formatCalendarDate(evidence.window.previousStart)} – ${formatCalendarDate(evidence.window.previousEnd)}`]);
-  for (const [key, value] of Object.entries(evidence.counts ?? {})) rows.push([key, String(value)]);
-  for (const [key, value] of Object.entries(evidence.values ?? {})) rows.push([/^\d{4}-\d{2}-\d{2}$/.test(key) ? formatCalendarDate(key) : key, value === null ? 'not available' : String(value)]);
+  for (const [key, value] of Object.entries(evidence.counts ?? {})) rows.push([words(key), String(value)]);
+  for (const [key, value] of Object.entries(evidence.values ?? {})) rows.push([/^\d{4}-\d{2}-\d{2}$/.test(key) ? formatCalendarDate(key) : /[a-z][A-Z]|^[a-z]/.test(key) && !key.includes(' ') ? words(key) : key, value === null ? 'not available' : String(value)]);
   if (evidence.dates?.length) rows.push(['Dates', evidence.dates.map((date) => formatCalendarDate(date)).join(', ')]);
   return rows;
 }

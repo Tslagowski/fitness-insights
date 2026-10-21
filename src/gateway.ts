@@ -3,6 +3,7 @@ import type { FoodDay, FoodEntry, FoodSource } from './import/food';
 import type { SourceKind } from './import/sources';
 import type { DurationUnit, WorkoutDay, WorkoutSet, WorkoutSource } from './import/workout';
 import { emptyReviewState, type CompletenessStatus, type ReviewChoice, type ReviewState } from './analysis/eligibility';
+import type { WrittenReport } from './analysis/report';
 
 export type DisplayDensity = 'comfortable' | 'compact';
 
@@ -39,6 +40,14 @@ export interface Gateway {
   loadWorkoutDay(date: string): Promise<SavedWorkoutDay | null>;
   /** Every active workout day with its sets, oldest first (for exercise analysis). */
   loadWorkoutHistory(): Promise<SavedWorkoutDay[]>;
+  /** Saves a generated report for the active revision; the same fingerprint is saved only once. */
+  saveReport(report: WrittenReport, fingerprint: string): Promise<{ id: string; createdAt: string; replayed: boolean }>;
+  /** Saved reports, newest first (metadata only). */
+  listReports(): Promise<SavedReportSummary[]>;
+  /** One saved report with its stored inputs and content, or null if it no longer exists. */
+  loadReport(id: string): Promise<SavedReport | null>;
+  /** What retention would remove (dry run), or removes it when apply is true. */
+  retention(expectedRevisionId: number | null, apply: boolean): Promise<RetentionSummary>;
   /** Sets (or, with null, removes) the cosmetic display name for a logged exercise name. Raw records are unchanged. */
   saveExerciseAlias(sourceName: string, displayName: string | null): Promise<void>;
   /** Records the owner's decision about one specific saved value (latest decision wins). */
@@ -243,7 +252,34 @@ export interface ImportedHistory {
 }
 
 /** The shared history changed after the preview was prepared (for example, on another device). */
+export interface SavedReportSummary {
+  id: string;
+  createdAt: string;
+  revisionId: number | null;
+  reportDate: string;
+  periodEnd: string | null;
+  templateVersion: string;
+  fingerprint: string;
+}
+
+export interface SavedReport extends SavedReportSummary { content: WrittenReport }
+
+export interface RetentionSummary {
+  dryRun: boolean;
+  revisions: number;
+  keep: number;
+  /** Oldest revision kept (null when there are not yet more versions than are retained). */
+  keepFromRevisionId: number | null;
+  retainedFromRevisionId: number | null;
+  dailyRecords: number;
+  foodDays: number;
+  workoutDays: number;
+  reports: number;
+}
+
 export class StaleRevisionError extends Error {}
+/** Undo would need a version older than the retained window. */
+export class RetentionLimitError extends Error {}
 
 /** The requested record or change no longer exists (for example, already cleared or nothing left to undo). */
 export class NothingToChangeError extends Error {}

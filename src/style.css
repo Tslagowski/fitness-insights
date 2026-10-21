@@ -256,6 +256,19 @@ main:focus { outline: 0; }
 .expenditure-dot { fill: var(--series-expenditure); stroke: var(--chart-surface); stroke-width: 2; }
 .target-line { fill: none; stroke: var(--target-ink); stroke-width: 2; stroke-linejoin: round; }
 .hit { fill: transparent; cursor: pointer; }
+.report-list li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 8px 0; border-bottom: 1px solid #eef1e9; }
+.report-list li .report-line { color: #233b37; }
+.report-list li button { grid-row: 1 / span 2; grid-column: 2; align-self: center; }
+.report-list li.is-open { background: #f3f6ee; }
+.save-status { display: block; margin-bottom: 10px; }
+.opened-report { border-top: 1px solid #e6eadf; margin-top: 18px; padding-top: 16px; }
+.opened-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.opened-heading h3 { font-size: 15px; }
+.compare-button { margin: 4px 0 14px; }
+.report-comparison h4 { font-size: 13px; margin: 14px 0 4px; }
+.finding-changes li span { font-size: 12px; color: #3e5444; }
+.retention-preview { border-top: 1px solid #e6eadf; padding-top: 12px; }
+
 .report-view { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
 .report-section { border-top: 1px solid #e6eadf; padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
 .report-section-title { font-size: 14px; margin: 0; }

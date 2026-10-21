@@ -213,7 +213,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 08 | Weight and activity comparisons | Implemented; owner review pending |
 | 09 | Exercise performance and workload | Implemented; owner review pending |
 | 10 | Evidence-backed written overview | Implemented; owner review pending |
-| 11 | Immutable report/import history | Pending |
+| 11 | Immutable report/import history | Implemented; owner review pending |
 | 12 | Portable backup and restore | Pending |
 | 13 | Service/quota failure recovery | Pending |
 | 14 | Complete mobile and cross-device release verification | Pending |

@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  defaultPreferences, NothingToChangeError, ReconciliationRequiredError, StaleRevisionError, type CalorieConflict, type ChangeKind,
+  defaultPreferences, NothingToChangeError, ReconciliationRequiredError, RetentionLimitError, StaleRevisionError, type RetentionSummary, type SavedReport, type SavedReportSummary, type CalorieConflict, type ChangeKind,
   type ChangeResult, type ClearableDomain, type DisplayDensity, type FoodCounts, type Gateway, type ImportedHistory, type Preferences,
   type SavedFoodDay, type SavedWorkoutDay, type SourceFile, type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview,
 } from './gateway';
@@ -103,6 +103,36 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
       if (error) throw translateError(error);
       return ((data ?? []) as Array<Record<string, unknown>>).map((day) => ({
         date: String(day.date), source: day.source_kind as WorkoutSource, sets: day.sets as WorkoutSet[], revisionId: Number(day.revision_id) }));
+    },
+    async saveReport(report, fingerprint) {
+      const { data, error } = await client.rpc('save_report', {
+        p_fingerprint: fingerprint, p_expected_revision_id: report.inputs.revisionId, p_report_date: report.inputs.reportDate,
+        p_period_end: report.inputs.periodEnd, p_template_version: report.inputs.templateVersion, p_inputs: report.inputs, p_content: report,
+      });
+      if (error) throw translateError(error);
+      const result = data as Record<string, unknown>;
+      return { id: String(result.id), createdAt: String(result.created_at), replayed: result.replayed === true };
+    },
+    async listReports(): Promise<SavedReportSummary[]> {
+      const { data, error } = await client.from('reports').select(reportSummaryColumns).order('created_at', { ascending: false }).limit(200);
+      if (error) throw translateError(error);
+      return (data ?? []).map((row) => decodeReportSummary(row as Record<string, unknown>));
+    },
+    async loadReport(id): Promise<SavedReport | null> {
+      const { data, error } = await client.from('reports').select(`${reportSummaryColumns},content`).eq('id', id).maybeSingle();
+      if (error) throw translateError(error);
+      if (!data) return null;
+      const row = data as Record<string, unknown>;
+      return { ...decodeReportSummary(row), content: row.content as SavedReport['content'] };
+    },
+    async retention(expectedRevisionId, apply): Promise<RetentionSummary> {
+      const { data, error } = await client.rpc('prune_history', { p_expected_revision_id: expectedRevisionId, p_dry_run: !apply, p_keep: 12 });
+      if (error) throw translateError(error);
+      const result = data as Record<string, unknown>;
+      const id = (value: unknown) => (typeof value === 'number' ? value : null);
+      return { dryRun: result.dry_run === true, revisions: Number(result.revisions ?? 0), keep: Number(result.keep ?? 12), keepFromRevisionId: id(result.keep_from_revision_id),
+        retainedFromRevisionId: id(result.retained_from_revision_id), dailyRecords: Number(result.daily_records ?? 0), foodDays: Number(result.food_days ?? 0),
+        workoutDays: Number(result.workout_days ?? 0), reports: Number(result.reports ?? 0) };
     },
     async saveExerciseAlias(sourceName, displayName) {
       const { error } = displayName && displayName.trim()
@@ -219,10 +249,17 @@ function decodeConflicts(value: unknown): CalorieConflict[] {
   }));
 }
 
+const reportSummaryColumns = 'id,created_at,revision_id,report_date,period_end,template_version,fingerprint';
+function decodeReportSummary(row: Record<string, unknown>): SavedReportSummary {
+  return { id: String(row.id), createdAt: String(row.created_at), revisionId: typeof row.revision_id === 'number' ? row.revision_id : null,
+    reportDate: String(row.report_date), periodEnd: row.period_end ? String(row.period_end) : null, templateVersion: String(row.template_version), fingerprint: String(row.fingerprint) };
+}
+
 function translateError(error: { code?: string; message: string }): Error {
   if (error.code === 'FI409') return new StaleRevisionError(error.message);
   if (error.code === 'FI422') return new ReconciliationRequiredError(error.message);
   if (error.code === 'P0002') return new NothingToChangeError(error.message);
+  if (error.code === 'FI410') return new RetentionLimitError(error.message);
   return Object.assign(new Error(error.message), { code: error.code });
 }
 

@@ -1,5 +1,5 @@
 import {
-  defaultPreferences, NothingToChangeError, ReconciliationRequiredError, StaleRevisionError, type CalorieConflict, type ChangeKind,
+  defaultPreferences, NothingToChangeError, ReconciliationRequiredError, RetentionLimitError, StaleRevisionError, type RetentionSummary, type SavedReport, type SavedReportSummary, type CalorieConflict, type ChangeKind,
   type ChangeResult, type ClearableDomain, type ClearDayRequest, type DisplayDensity, type FoodDaySummary, type Gateway, type Identity,
   type ImportedHistory, type ImportSummary, type PreferenceChanges, type SavedFoodDay, type SavedWorkoutDay, type SourcesCommitRequest,
   type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview, type WorkoutDaySummary,
@@ -9,6 +9,7 @@ import type { CompletenessStatus, ReviewChoice, ReviewState } from '../../src/an
 import type { DailyDomain, DailyValues } from '../../src/import/workbook';
 import { calorieTolerance, foodDayTotals, type FoodEntry, type FoodSource } from '../../src/import/food';
 import { sameValues } from '../../src/import/preview';
+import type { WrittenReport } from '../../src/analysis/report';
 
 interface Span { introduced: number; retired: number | null }
 interface Row extends Span { date: string; domain: DailyDomain; values: DailyValues; sourceFileId: string }
@@ -42,6 +43,8 @@ export class MemoryGateway implements Gateway {
   events: Event[] = [];
   calls: Array<{ method: string; requestId?: string; expectedRevisionId: number | null }> = [];
   private nextRevision = 1;
+  reports: SavedReport[] = [];
+  retainedFrom: number | null = null;
   /** Commit time of the next change; tests whose dates are relative to today set it to Date.now(). */
   clock = Date.UTC(2026, 9, 20, 15);
 
@@ -204,6 +207,49 @@ export class MemoryGateway implements Gateway {
     return { outcome: revision ? 'changed' : 'unchanged', replayed: false, revisionId: this.revisionId, ...counts };
   }
 
+  async saveReport(report: WrittenReport, fingerprint: string) {
+    this.calls.push({ method: 'saveReport', expectedRevisionId: report.inputs.revisionId });
+    if (this.failWrites) throw new Error('Network unavailable');
+    if (report.inputs.revisionId !== this.revisionId) throw new StaleRevisionError('stale');
+    const existing = this.reports.find((item) => item.fingerprint === fingerprint);
+    if (existing) return { id: existing.id, createdAt: existing.createdAt, replayed: true };
+    this.clock += 1000;
+    const saved: SavedReport = { id: `report-${this.reports.length + 1}`, createdAt: new Date(this.clock).toISOString(), revisionId: report.inputs.revisionId,
+      reportDate: report.inputs.reportDate, periodEnd: report.inputs.periodEnd, templateVersion: report.inputs.templateVersion, fingerprint, content: JSON.parse(JSON.stringify(report)) };
+    this.reports.push(saved);
+    return { id: saved.id, createdAt: saved.createdAt, replayed: false };
+  }
+
+  async listReports(): Promise<SavedReportSummary[]> {
+    if (this.failReads) throw new Error('Network unavailable');
+    return [...this.reports].reverse().map(({ content: _content, ...summary }) => summary);
+  }
+
+  async loadReport(id: string): Promise<SavedReport | null> {
+    if (this.failReads) throw new Error('Network unavailable');
+    const report = this.reports.find((item) => item.id === id);
+    return report ? JSON.parse(JSON.stringify(report)) : null;
+  }
+
+  async retention(expectedRevisionId: number | null, apply: boolean): Promise<RetentionSummary> {
+    this.calls.push({ method: apply ? 'applyRetention' : 'previewRetention', expectedRevisionId });
+    if (apply && this.failWrites) throw new Error('Network unavailable');
+    if (expectedRevisionId !== this.revisionId) throw new StaleRevisionError('stale');
+    const revisions = this.nextRevision - 1;
+    const keepFrom = revisions > 12 ? revisions - 11 : null;
+    const old = <T extends Span>(rows: T[]) => rows.filter((row) => keepFrom !== null && row.retired !== null && row.retired < keepFrom);
+    const summary = { dryRun: !apply, revisions, keep: 12, keepFromRevisionId: keepFrom, dailyRecords: old(this.rows).length, foodDays: old(this.food).length,
+      workoutDays: old(this.workouts).length, reports: this.reports.filter((report) => keepFrom !== null && report.revisionId !== null && report.revisionId < keepFrom).length };
+    if (apply && keepFrom !== null) {
+      this.rows = this.rows.filter((row) => !old([row]).length);
+      this.food = this.food.filter((row) => !old([row]).length);
+      this.workouts = this.workouts.filter((row) => !old([row]).length);
+      this.reports = this.reports.filter((report) => report.revisionId === null || report.revisionId >= keepFrom);
+      this.retainedFrom = Math.max(this.retainedFrom ?? 0, keepFrom);
+    }
+    return { ...summary, retainedFromRevisionId: this.retainedFrom };
+  }
+
   /** Simulates another device changing the shared history with a workbook-sourced daily import. */
   async otherDeviceImport(records: Array<{ date: string; domain: DailyDomain; values: DailyValues }>) {
     return this.commitSources({ requestId: `other-${this.clock}`, expectedRevisionId: this.revisionId, acceptReconciliation: true,
@@ -268,6 +314,9 @@ export class MemoryGateway implements Gateway {
     const target = this.undoTarget();
     if (!target) throw new NothingToChangeError('There is no import or correction to undo.');
     const base = target.baseRevisionId;
+    if (base !== null && this.retainedFrom !== null && base < this.retainedFrom - 1) {
+      throw new RetentionLimitError('This change is older than the retained versions, so it can no longer be undone. Restore a backup to go further back.');
+    }
     const at = <T extends Span>(rows: T[]) => (base === null ? [] : rows.filter((row) => row.introduced <= base && (row.retired === null || row.retired > base)));
     const plan: Array<{ date: string; action: 'added' | 'changed' | 'removed'; current?: Span; restoreRow?: Row; restoreFood?: FoodRow; restoreWorkout?: WorkoutRow }> = [];
     const snapshot = at(this.rows);

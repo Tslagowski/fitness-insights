@@ -15,6 +15,9 @@ import ChangeHistory from './components/ChangeHistory.vue';
 import NutritionAnalysis from './components/NutritionAnalysis.vue';
 import ExerciseProgress from './components/ExerciseProgress.vue';
 import WrittenOverview from './components/WrittenOverview.vue';
+import ReportHistory from './components/ReportHistory.vue';
+import RetentionPanel from './components/RetentionPanel.vue';
+import type { WrittenReport } from './analysis/report';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
 const props = defineProps<{ gateway: Gateway | null; configurationProblem?: string }>();
@@ -32,6 +35,8 @@ const preferences = ref<Preferences>({ ...defaultPreferences });
 const draftDensity = ref<DisplayDensity>('comfortable');
 const draftDurationUnit = ref<DurationUnit>('seconds');
 const draftBand = ref(defaultPreferences.strengthBandPercent);
+const currentReport = ref<WrittenReport | null>(null);
+const reportComplete = ref(false);
 const notice = ref('');
 const error = ref('');
 const saving = ref(false);
@@ -222,6 +227,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <ImportPanel v-if="gateway" :gateway="gateway" :history="history" :history-state="historyState" :reload-history="reloadHistory" />
             <CorrectDay v-if="gateway && historyState === 'ready' && hasHistory" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
             <ChangeHistory v-if="gateway && historyState === 'ready' && history.imports.length" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
+            <RetentionPanel v-if="gateway && historyState === 'ready' && history.revisionId !== null" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
             <section class="section-card"><div class="section-heading"><div><div class="eyebrow">MAKE IT YOURS</div><h2>Display preferences</h2></div><span class="outline-pill">Saved to your account</span></div>
               <form @submit.prevent="save"><label class="field-label" for="density">Display density</label><p class="field-help">Choose how much space to leave between records.</p>
                 <select id="density" aria-label="Display density" v-model="draftDensity" :disabled="saving"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select>
@@ -248,10 +254,11 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <FoodLog v-if="gateway && history.foodDays.length" :gateway="gateway" :food-days="history.foodDays" :today="reportingToday()" />
           </template>
           <template v-else-if="page === 'overview' && gateway && historyState === 'ready' && hasHistory">
-            <WrittenOverview :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
+            <WrittenOverview :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" @generated="(report, complete) => { currentReport = report; reportComplete = complete; }" />
             <DataStatus :report="eligibility" />
             <ReviewQueue :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
             <CompletenessPanel :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
+            <ReportHistory :gateway="gateway" :history="history" :current="currentReport" :complete="reportComplete" />
           </template>
           <template v-else-if="page === 'training' && gateway && history.workoutDays.length">
             <ExerciseProgress :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
