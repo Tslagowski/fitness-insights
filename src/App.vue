@@ -14,6 +14,7 @@ import CorrectDay from './components/CorrectDay.vue';
 import ChangeHistory from './components/ChangeHistory.vue';
 import NutritionAnalysis from './components/NutritionAnalysis.vue';
 import ExerciseProgress from './components/ExerciseProgress.vue';
+import WrittenOverview from './components/WrittenOverview.vue';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
 const props = defineProps<{ gateway: Gateway | null; configurationProblem?: string }>();
@@ -247,6 +248,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <FoodLog v-if="gateway && history.foodDays.length" :gateway="gateway" :food-days="history.foodDays" :today="reportingToday()" />
           </template>
           <template v-else-if="page === 'overview' && gateway && historyState === 'ready' && hasHistory">
+            <WrittenOverview :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
             <DataStatus :report="eligibility" />
             <ReviewQueue :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
             <CompletenessPanel :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
@@ -259,7 +261,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
           <section v-else class="empty-card data-empty"><div class="empty-mark" aria-hidden="true"><span></span><span></span><span></span></div>
             <div class="eyebrow">YOUR STARTING POINT</div>
             <h2>{{ page === 'training' ? 'Your training story starts here.' : page === 'nutrition' ? 'Room for the whole picture.' : `Welcome to your workspace, ${identity?.name}.` }}</h2>
-            <p>{{ page === 'training' ? 'No workout history has been imported yet. Import the MacroFactor workout CSV or workbook to see your sessions and sets here.' : page === 'nutrition' ? 'No nutrition or weight history has been imported yet. Import a MacroFactor workbook to see your daily records here.' : hasHistory ? `Your saved history covers ${historyDates.length} dates through ${formatCalendarDate(historyDates[historyDates.length - 1])}. Written findings arrive in a later update.` : 'Your account is connected. Import a MacroFactor workbook to start building your history.' }}</p>
+            <p>{{ page === 'training' ? 'No workout history has been imported yet. Import the MacroFactor workout CSV or workbook to see your sessions and sets here.' : page === 'nutrition' ? 'No nutrition or weight history has been imported yet. Import a MacroFactor workbook to see your daily records here.' : hasHistory ? `Your saved history covers ${historyDates.length} dates through ${formatCalendarDate(historyDates[historyDates.length - 1])}. ` : 'Your account is connected. Import a MacroFactor workbook to start building your history.' }}</p>
             <a class="primary-button" href="#settings" @click="navigate('settings')">Open imports <span aria-hidden="true">&rarr;</span></a>
           </section>
         </template>

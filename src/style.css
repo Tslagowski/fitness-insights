@@ -256,6 +256,22 @@ main:focus { outline: 0; }
 .expenditure-dot { fill: var(--series-expenditure); stroke: var(--chart-surface); stroke-width: 2; }
 .target-line { fill: none; stroke: var(--target-ink); stroke-width: 2; stroke-linejoin: round; }
 .hit { fill: transparent; cursor: pointer; }
+.report-view { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+.report-section { border-top: 1px solid #e6eadf; padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.report-section-title { font-size: 14px; margin: 0; }
+.finding { display: flex; flex-direction: column; gap: 4px; padding-left: 12px; border-left: 2px solid #b8c9a8; }
+.finding p { font-size: 13px; line-height: 1.6; color: #233b37; }
+.finding-source-estimate { border-left-color: #d9b46a; }
+.finding-unavailable { border-left-color: #c9d0c3; }
+.finding-unavailable p { color: #5f6d5c; }
+.finding-kind { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; font-weight: 650; color: #637d6d; }
+.finding-evidence summary { cursor: pointer; font-size: 11px; color: #374f43; min-height: 32px; display: flex; align-items: center; }
+.finding-evidence dl { margin: 4px 0 0; font-size: 11px; display: grid; gap: 2px; }
+.finding-evidence dl div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #eef1e9; padding: 4px 0; }
+.finding-evidence dt { color: #62755b; }
+.finding-evidence dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.report-link { align-self: flex-start; padding-left: 0; }
+
 .key.recent { background: var(--series-scale); }
 .key.previous { background: var(--series-trend); }
 .key.older { background: #b5bdb0; }
