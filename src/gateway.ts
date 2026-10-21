@@ -66,6 +66,8 @@ export interface Gateway {
   applyRestore(restoreId: string, expectedRevisionId: number | null, manifest: BackupManifest, dryRun: boolean): Promise<Record<BackupTable, number>>;
   /** Removes a restore's staged chunks. */
   discardRestore(restoreId: string): Promise<void>;
+  /** Owner-reviewed cleanup of restore uploads that were never applied (older than ten minutes). */
+  discardStaleRestores(): Promise<{ removedUploads: number }>;
   /** Sets (or, with null, removes) the cosmetic display name for a logged exercise name. Raw records are unchanged. */
   saveExerciseAlias(sourceName: string, displayName: string | null): Promise<void>;
   /** Records the owner's decision about one specific saved value (latest decision wins). */
@@ -298,6 +300,8 @@ export interface RetentionSummary {
 export class StaleRevisionError extends Error {}
 /** Undo would need a version older than the retained window. */
 export class RetentionLimitError extends Error {}
+/** The database refused new data because the free-tier limit is nearly reached; nothing was saved. */
+export class CapacityError extends Error {}
 
 /** The requested record or change no longer exists (for example, already cleared or nothing left to undo). */
 export class NothingToChangeError extends Error {}

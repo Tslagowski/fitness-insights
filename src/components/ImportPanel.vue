@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import {
-  ReconciliationRequiredError, StaleRevisionError, type Gateway, type ImportedHistory, type SourceFile, type SourcesPreview, type SourcesResult,
+  ReconciliationRequiredError, StaleRevisionError, CapacityError, type Gateway, type ImportedHistory, type SourceFile, type SourcesPreview, type SourcesResult,
 } from '../gateway';
 import { domainLabels, type SheetDisposition } from '../import/workbook';
 import { foodSourceLabels } from '../import/food';
@@ -11,6 +11,7 @@ import {
   domainFreshness, formatCalendarDate, formatValue, newRequestId, plural, proposeChanges, reportingToday, sha256Hex, type ProposedChanges,
 } from '../import/preview';
 import DailyTable from './DailyTable.vue';
+import { capacityProblem } from '../backup/capacity';
 
 const props = defineProps<{
   gateway: Gateway;
@@ -133,6 +134,13 @@ async function confirm() {
   const current = preview.value;
   phase.value = 'committing';
   problem.value = '';
+  // Check free-tier room first. The database enforces its own hard stop, so a failed check is not fatal.
+  try {
+    const status = await props.gateway.capacity();
+    const incomingRows = JSON.stringify([current.plan.daily?.records ?? [], current.plan.food?.days ?? [], current.plan.workouts?.days ?? []]).length;
+    const tooBig = capacityProblem(status, { databaseBytes: incomingRows * 3, archiveBytes: current.sources.reduce((sum, source) => sum + source.byteSize, 0) });
+    if (tooBig) { phase.value = 'preview'; problem.value = tooBig; return; }
+  } catch { /* the commit below reports any real failure */ }
   try {
     const result = await props.gateway.commitSources({
       requestId: current.requestId, expectedRevisionId: current.baseRevisionId, sources: current.sources,
@@ -149,6 +157,8 @@ async function confirm() {
       if (await props.reloadHistory()) {
         try { await refreshPreview(current.plan, current.sources); } catch { /* keep the message; the user can re-select the files */ }
       }
+    } else if (error instanceof CapacityError) {
+      problem.value = error.message;
     } else {
       problem.value = 'The import was not saved, and your previous history is unchanged. Check your connection (or resume a paused Supabase project) and press Confirm import again. Retrying cannot create a duplicate.';
     }

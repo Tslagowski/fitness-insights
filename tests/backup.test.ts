@@ -68,7 +68,7 @@ describe('backup file', () => {
   });
 
   test('capacity stops at 90% of either free limit', () => {
-    const status = { databaseBytes: 400_000_000, databaseLimitBytes: 524_288_000, archiveBytes: 100, archiveLimitBytes: 1_073_741_824, stagingBytes: 0 };
+    const status = { databaseBytes: 400_000_000, databaseLimitBytes: 524_288_000, archiveBytes: 100, archiveLimitBytes: 1_073_741_824, stagingBytes: 0, stagingUploads: 0, oldestStagingAt: null, hardStopFraction: 0.95 };
     expect(capacityProblem(status, { databaseBytes: 50_000_000, archiveBytes: 0 })).toBeNull();
     expect(capacityProblem(status, { databaseBytes: 80_000_000, archiveBytes: 0 })).toMatch(/free 500 MB limit \(the app stops at 90%\). Nothing was changed./);
     expect(capacityProblem(status, { databaseBytes: 0, archiveBytes: 1_000_000_000 })).toMatch(/stored export files/);

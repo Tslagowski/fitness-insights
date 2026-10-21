@@ -45,6 +45,8 @@ export async function createTestDatabase(): Promise<PGlite> {
     grant create on schema public to table_owner;
     -- On Supabase one role (postgres) owns every function; mirror that ability here.
     grant execute on all functions in schema public to table_owner;
+    grant usage on schema private to table_owner;
+    grant select on all tables in schema private to table_owner;
     insert into private.app_owner (user_id) values ('${ownerId}');
   `);
   return database;

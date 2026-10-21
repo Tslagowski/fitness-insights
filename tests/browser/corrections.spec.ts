@@ -21,6 +21,7 @@ test('on a phone, the owner clears one day of weight and undoes it', async ({ br
     if (name === 'preferences') return route.fulfill({ json: { display_density: 'comfortable', timezone: 'America/Denver', week_starts_on: 1 } });
     if (name === 'active_history') return route.fulfill({ json: { revision_id: revision, records, imports, undo_target_id: undoTarget } });
     if (name === 'review_state') return route.fulfill({ json: { decisions: [], completeness: [] } });
+    if (name === 'capacity_status') return route.fulfill({ json: { database_bytes: 1000000, database_limit_bytes: 524288000, archive_bytes: 1000, archive_limit_bytes: 1073741824, hard_stop_fraction: 0.95, staging_bytes: 0, staging_uploads: 0, oldest_staging_at: null } });
     requests.push({ name, body });
     if (name === 'clear_day') {
       records = records.filter((record) => !(record.date === body.p_date && record.domain === body.p_domain));

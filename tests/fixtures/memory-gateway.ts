@@ -1,5 +1,5 @@
 import {
-  defaultPreferences, NothingToChangeError, ReconciliationRequiredError, RetentionLimitError, StaleRevisionError, type RetentionSummary, type SavedReport, type SavedReportSummary, type CalorieConflict, type ChangeKind,
+  defaultPreferences, NothingToChangeError, ReconciliationRequiredError, RetentionLimitError, StaleRevisionError, CapacityError, type RetentionSummary, type SavedReport, type SavedReportSummary, type CalorieConflict, type ChangeKind,
   type ChangeResult, type ClearableDomain, type ClearDayRequest, type DisplayDensity, type FoodDaySummary, type Gateway, type Identity,
   type ImportedHistory, type ImportSummary, type PreferenceChanges, type SavedFoodDay, type SavedWorkoutDay, type SourcesCommitRequest,
   type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview, type WorkoutDaySummary,
@@ -50,9 +50,13 @@ export class MemoryGateway implements Gateway {
   retainedFrom: number | null = null;
   sourceFiles: Array<Record<string, unknown>> = [];
   archives = new Map<string, Uint8Array>();
-  capacityStatus: CapacityStatus = { databaseBytes: 40_000_000, databaseLimitBytes: 524_288_000, archiveBytes: 5_000_000, archiveLimitBytes: 1_073_741_824, stagingBytes: 0 };
+  capacityStatus: CapacityStatus = { databaseBytes: 40_000_000, databaseLimitBytes: 524_288_000, archiveBytes: 5_000_000, archiveLimitBytes: 1_073_741_824, stagingBytes: 0, stagingUploads: 0, oldestStagingAt: null, hardStopFraction: 0.95 };
+  /** Simulates the database's hard capacity stop (FI507) on every write that adds history. */
+  databaseFull = false;
   staging = new Map<string, Map<string, Array<Record<string, unknown>>>>();
   failArchiveDownload = false;
+  /** Applies the next restore but loses its response, like a dropped connection after commit. */
+  loseRestoreResponse = false;
   /** Commit time of the next change; tests whose dates are relative to today set it to Date.now(). */
   clock = Date.UTC(2026, 9, 20, 15);
 
@@ -224,6 +228,7 @@ export class MemoryGateway implements Gateway {
     this.calls.push({ method: 'saveReport', expectedRevisionId: report.inputs.revisionId });
     if (this.failWrites) throw new Error('Network unavailable');
     if (report.inputs.revisionId !== this.revisionId) throw new StaleRevisionError('stale');
+    if (this.databaseFull) throw new CapacityError('The free database is nearly full, so nothing new was saved.');
     const existing = this.reports.find((item) => item.fingerprint === fingerprint);
     if (existing) return { id: existing.id, createdAt: existing.createdAt, replayed: true };
     this.clock += 1000;
@@ -337,10 +342,17 @@ export class MemoryGateway implements Gateway {
     this.revisionId = manifest.workspace_state.active_revision_id;
     this.retainedFrom = manifest.workspace_state.retained_from_revision_id;
     this.staging.delete(restoreId);
+    if (this.loseRestoreResponse) { this.loseRestoreResponse = false; throw new Error('Network connection lost'); }
     return counts;
   }
 
   async discardRestore(restoreId: string) { this.staging.delete(restoreId); }
+
+  async discardStaleRestores() {
+    const removedUploads = this.capacityStatus.stagingUploads;
+    this.capacityStatus = { ...this.capacityStatus, stagingUploads: 0, stagingBytes: 0, oldestStagingAt: null };
+    return { removedUploads };
+  }
 
   /** Simulates another device changing the shared history with a workbook-sourced daily import. */
   async otherDeviceImport(records: Array<{ date: string; domain: DailyDomain; values: DailyValues }>) {
@@ -392,6 +404,7 @@ export class MemoryGateway implements Gateway {
   private begin(method: string, requestId: string, expectedRevisionId: number | null): ChangeResult | null {
     this.calls.push({ method, requestId, expectedRevisionId });
     if (this.failWrites) throw new Error('Network unavailable');
+    if (this.databaseFull && method === 'commitSources') throw new CapacityError('The free database is nearly full, so nothing new was saved. Your existing data is unchanged. Remove older versions in Version retention or download a backup and free space, then try again.');
     const existing = this.events.find((event) => event.requestId === requestId);
     if (existing) return { outcome: existing.outcome, replayed: true, revisionId: existing.revisionId ?? existing.baseRevisionId, added: existing.added, changed: existing.changed, removed: existing.removed };
     if (expectedRevisionId !== this.revisionId) throw new StaleRevisionError('stale');

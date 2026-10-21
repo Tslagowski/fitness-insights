@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { StaleRevisionError, type Gateway, type ImportedHistory, type Preferences } from '../gateway';
+import { CapacityError, StaleRevisionError, type Gateway, type ImportedHistory, type Preferences } from '../gateway';
 import { backupFileName, BackupError, backupTables, buildBackup, chunkRows, readBackup, type BackupTable, type ParsedBackup } from '../backup/backup';
 import { capacityProblem, formatBytes } from '../backup/capacity';
 import { newRequestId, reportingToday } from '../import/preview';
@@ -82,6 +82,14 @@ async function choose(event: Event) {
 }
 const createdAt = computed(() => (parsed.value ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(parsed.value.manifest.created_at)) : ''));
 
+/** True when the saved history now matches the backup exactly (a restore that committed before its response was lost). */
+async function alreadyRestored(backup: ParsedBackup): Promise<boolean> {
+  try {
+    const [counts, history] = await Promise.all([props.gateway.workspaceCounts(), props.gateway.loadHistory()]);
+    return history.revisionId === backup.manifest.workspace_state.active_revision_id && backupTables.every((table) => counts[table] === backup.manifest.counts[table]);
+  } catch { return false; }
+}
+
 async function restore() {
   const backup = parsed.value;
   if (!backup || restoring.value) return;
@@ -101,7 +109,12 @@ async function restore() {
       await props.gateway.stageRestoreChunk(restoreId, item.table, item.chunk, item.rows);
     }
     restoring.value = 'Replacing your saved history…';
-    await props.gateway.applyRestore(restoreId, expectedRevision.value, backup.manifest, false);
+    try {
+      await props.gateway.applyRestore(restoreId, expectedRevision.value, backup.manifest, false);
+    } catch (error) {
+      // If the response was lost after the restore committed, the saved history already matches the backup.
+      if (error instanceof StaleRevisionError || error instanceof CapacityError || !(await alreadyRestored(backup))) throw error;
+    }
     let preferenceNote = '';
     try {
       const identity = await props.gateway.getIdentity();
@@ -118,6 +131,7 @@ async function restore() {
     if (staged) { try { await props.gateway.discardRestore(restoreId); } catch { /* staging expires after a day */ } }
     restoreProblem.value = error instanceof StaleRevisionError
       ? 'Your saved history changed on another device after this preview, so nothing was replaced. Choose the backup again to review the latest state.'
+      : error instanceof CapacityError ? `${error.message}`
       : `Nothing was replaced, and your saved history is unchanged. ${error instanceof Error && /incomplete/.test(error.message) ? error.message : 'The connection or the service failed during the restore; try again when the app loads normally.'}`;
     if (error instanceof StaleRevisionError) parsed.value = null;
   } finally { restoring.value = ''; }

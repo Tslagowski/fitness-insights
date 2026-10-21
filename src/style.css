@@ -256,6 +256,21 @@ main:focus { outline: 0; }
 .expenditure-dot { fill: var(--series-expenditure); stroke: var(--chart-surface); stroke-width: 2; }
 .target-line { fill: none; stroke: var(--target-ink); stroke-width: 2; stroke-linejoin: round; }
 .hit { fill: transparent; cursor: pointer; }
+.service-status { --status-good: #0ca30c; --status-warning: #fab219; --status-critical: #d03b3b; }
+.meters { display: flex; flex-direction: column; gap: 16px; margin-bottom: 12px; }
+.meter-row { display: flex; flex-direction: column; gap: 5px; }
+.meter-label { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+.meter-label span:last-child { color: #62755b; font-variant-numeric: tabular-nums; }
+.meter { position: relative; height: 10px; border-radius: 5px; background: #e6ebe0; overflow: hidden; }
+.meter-fill { position: absolute; inset: 0 auto 0 0; border-radius: 5px; }
+.meter-fill.ok { background: var(--status-good); }
+.meter-fill.high { background: var(--status-warning); }
+.meter-fill.full { background: var(--status-critical); }
+.meter-stop { position: absolute; top: 0; bottom: 0; width: 2px; background: #233b37; opacity: .55; }
+.level-label { font-size: 11px; color: #3e5444; }
+.level-label.full { color: #8f2a2a; font-weight: 600; }
+.staging-note { border-top: 1px solid #e6eadf; padding-top: 12px; margin-top: 8px; }
+.recovery-guide { margin-top: 10px; }
 .restore-block { border-top: 1px solid #e6eadf; margin-top: 22px; padding-top: 18px; }
 .restore-block h3 { font-size: 15px; }
 .restore-block .file-picker { flex-direction: column; align-items: flex-start; gap: 6px; }

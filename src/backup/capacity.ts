@@ -10,6 +10,18 @@ export interface CapacityStatus {
   archiveBytes: number;
   archiveLimitBytes: number;
   stagingBytes: number;
+  /** Unapplied restore uploads waiting in staging, and when the oldest began. */
+  stagingUploads: number;
+  oldestStagingAt: string | null;
+  /** The database refuses new history above this fraction of its limit. */
+  hardStopFraction: number;
+}
+
+export type CapacityLevel = 'ok' | 'high' | 'full';
+/** Usage level for display: high from 70%, full from the app's 90% stop. */
+export function capacityLevel(used: number, limit: number): CapacityLevel {
+  const fraction = used / limit;
+  return fraction >= capacitySafetyFraction ? 'full' : fraction >= 0.7 ? 'high' : 'ok';
 }
 
 export const capacitySafetyFraction = 0.9;

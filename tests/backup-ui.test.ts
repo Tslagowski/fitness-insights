@@ -115,3 +115,19 @@ test('if the service cannot be read, the download says so and offers no partial 
   expect(app.get('.backup-panel [role="alert"]').text()).toContain('a partial backup is never offered');
   expect(URL.createObjectURL).not.toHaveBeenCalled();
 });
+
+test('a restore whose response was lost after it committed is recognized as done, not reported as a failure', async () => {
+  const original = await seededGateway();
+  const bytes = await downloadBackup(await open(original));
+  mounted.splice(0).forEach((wrapper) => wrapper.unmount());
+  const fresh = new MemoryGateway();
+  fresh.clock = Date.now();
+  const app = await open(fresh);
+  await chooseFile(app, bytes);
+  fresh.loseRestoreResponse = true;
+  await app.findAll('button').find((button) => button.text() === 'Replace with this backup')!.trigger('click');
+  await until(() => idle(app), 'the restore');
+  expect(app.find('.restore-block [role="alert"]').exists()).toBe(false);
+  expect(app.get('.restore-block [role="status"]').text()).toContain('Restored from fitness-insights-backup.zip');
+  expect(fresh.calls.filter((call) => call.method === 'applyRestore')).toHaveLength(1);
+});

@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  defaultPreferences, NothingToChangeError, ReconciliationRequiredError, RetentionLimitError, StaleRevisionError, type RetentionSummary, type SavedReport, type SavedReportSummary, type CalorieConflict, type ChangeKind,
+  defaultPreferences, NothingToChangeError, ReconciliationRequiredError, RetentionLimitError, StaleRevisionError, CapacityError, type RetentionSummary, type SavedReport, type SavedReportSummary, type CalorieConflict, type ChangeKind,
   type ChangeResult, type ClearableDomain, type DisplayDensity, type FoodCounts, type Gateway, type ImportedHistory, type Preferences,
   type SavedFoodDay, type SavedWorkoutDay, type SourceFile, type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview,
 } from './gateway';
@@ -142,7 +142,8 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
       if (error) throw translateError(error);
       const result = data as Record<string, unknown>;
       return { databaseBytes: Number(result.database_bytes), databaseLimitBytes: Number(result.database_limit_bytes), archiveBytes: Number(result.archive_bytes),
-        archiveLimitBytes: Number(result.archive_limit_bytes), stagingBytes: Number(result.staging_bytes ?? 0) };
+        archiveLimitBytes: Number(result.archive_limit_bytes), stagingBytes: Number(result.staging_bytes ?? 0), stagingUploads: Number(result.staging_uploads ?? 0),
+        oldestStagingAt: result.oldest_staging_at ? String(result.oldest_staging_at) : null, hardStopFraction: Number(result.hard_stop_fraction ?? 0.95) };
     },
     async workspaceCounts() {
       const { data, error } = await client.rpc('workspace_counts');
@@ -173,6 +174,11 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
         p_manifest: { schema_version: manifest.schema_version, counts: manifest.counts, workspace_state: manifest.workspace_state }, p_dry_run: dryRun });
       if (error) throw translateError(error);
       return (data as { counts: Record<BackupTable, number> }).counts;
+    },
+    async discardStaleRestores() {
+      const { data, error } = await client.rpc('discard_stale_restores', {});
+      if (error) throw translateError(error);
+      return { removedUploads: Number((data as Record<string, unknown>).removed_uploads ?? 0) };
     },
     async discardRestore(restoreId) {
       const { error } = await client.rpc('discard_restore', { p_restore_id: restoreId });
@@ -300,6 +306,7 @@ function translateError(error: { code?: string; message: string }): Error {
   if (error.code === 'FI422') return new ReconciliationRequiredError(error.message);
   if (error.code === 'P0002') return new NothingToChangeError(error.message);
   if (error.code === 'FI410') return new RetentionLimitError(error.message);
+  if (error.code === 'FI507') return new CapacityError(error.message);
   return Object.assign(new Error(error.message), { code: error.code });
 }
 

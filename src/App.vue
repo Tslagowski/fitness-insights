@@ -18,6 +18,7 @@ import WrittenOverview from './components/WrittenOverview.vue';
 import ReportHistory from './components/ReportHistory.vue';
 import RetentionPanel from './components/RetentionPanel.vue';
 import BackupPanel from './components/BackupPanel.vue';
+import ServiceStatus from './components/ServiceStatus.vue';
 import type { WrittenReport } from './analysis/report';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
@@ -221,7 +222,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
 
         <section v-else-if="state === 'loading'" class="empty-card" role="status"><span class="loading-line"></span><h2>Opening your workspace</h2><p>Checking your account and saved preferences.</p></section>
         <section v-else-if="state === 'denied'" class="empty-card"><div class="eyebrow">PRIVATE WORKSPACE</div><h2>This account does not have access.</h2><p>Sign out and use the GitHub account configured as the owner.</p><button class="primary-button" @click="signOut">Sign out</button></section>
-        <section v-else-if="state === 'error'" class="empty-card"><h2>Your workspace is temporarily unavailable.</h2><p>No preferences have been changed. If the free service is paused, resume the project and retry.</p><button class="primary-button" @click="refreshIdentity">Try again</button></section>
+        <section v-else-if="state === 'error'" class="empty-card"><h2>Your workspace is temporarily unavailable.</h2><p>Nothing has been changed. If the free Supabase project is paused (it pauses after about a week without use), open the Supabase dashboard, resume the project, wait a few minutes, and try again. Otherwise check your connection.</p><button class="primary-button" @click="refreshIdentity">Try again</button></section>
 
         <template v-else-if="state === 'ready'">
           <template v-if="page === 'settings'">
@@ -231,6 +232,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <RetentionPanel v-if="gateway && historyState === 'ready' && history.revisionId !== null" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
             <BackupPanel v-if="gateway" :gateway="gateway" :history="history" :preferences="preferences" :reload-history="reloadHistory"
               @preferences-restored="(saved) => { preferences = saved; draftDensity = saved.displayDensity; draftDurationUnit = saved.durationUnit; draftBand = saved.strengthBandPercent; }" />
+            <ServiceStatus v-if="gateway" :gateway="gateway" />
             <section class="section-card"><div class="section-heading"><div><div class="eyebrow">MAKE IT YOURS</div><h2>Display preferences</h2></div><span class="outline-pill">Saved to your account</span></div>
               <form @submit.prevent="save"><label class="field-label" for="density">Display density</label><p class="field-help">Choose how much space to leave between records.</p>
                 <select id="density" aria-label="Display density" v-model="draftDensity" :disabled="saving"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select>
@@ -267,7 +269,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <ExerciseProgress :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
             <TrainingLog :gateway="gateway" :history="history" :duration-unit="preferences.durationUnit" :today="reportingToday()" :reload-history="reloadHistory" />
           </template>
-          <section v-else-if="page === 'nutrition' && historyState === 'error'" class="empty-card"><h2>Your saved history could not be loaded.</h2><p>Nothing has been changed. If the free service is paused, resume the project and retry.</p><button class="primary-button" @click="reloadHistory">Try again</button></section>
+          <section v-else-if="page === 'nutrition' && historyState === 'error'" class="empty-card"><h2>Your saved history could not be loaded.</h2><p>Nothing has been changed. If the free Supabase project is paused, resume it in the Supabase dashboard, wait a few minutes, and try again. Recovery steps are in Imports &amp; Settings.</p><button class="primary-button" @click="reloadHistory">Try again</button></section>
           <section v-else class="empty-card data-empty"><div class="empty-mark" aria-hidden="true"><span></span><span></span><span></span></div>
             <div class="eyebrow">YOUR STARTING POINT</div>
             <h2>{{ page === 'training' ? 'Your training story starts here.' : page === 'nutrition' ? 'Room for the whole picture.' : `Welcome to your workspace, ${identity?.name}.` }}</h2>

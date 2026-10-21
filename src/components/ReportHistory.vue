@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { StaleRevisionError, type Gateway, type ImportedHistory, type SavedReport, type SavedReportSummary } from '../gateway';
+import { CapacityError, StaleRevisionError, type Gateway, type ImportedHistory, type SavedReport, type SavedReportSummary } from '../gateway';
 import { compareReports, reportFingerprint, type WrittenReport } from '../analysis/report';
 import { formatCalendarDate, plural } from '../import/preview';
 import ReportView from './ReportView.vue';
@@ -10,7 +10,7 @@ const props = defineProps<{ gateway: Gateway; history: ImportedHistory; current:
 
 const reports = ref<SavedReportSummary[]>([]);
 const listProblem = ref('');
-const saveState = ref<'idle' | 'saving' | 'saved' | 'unchanged' | 'failed' | 'skipped'>('idle');
+const saveState = ref<'idle' | 'saving' | 'saved' | 'unchanged' | 'failed' | 'skipped' | 'full'>('idle');
 const currentFingerprint = ref('');
 const opened = ref<SavedReport | null>(null);
 const opening = ref('');
@@ -35,7 +35,7 @@ async function saveCurrent() {
     await loadList();
   } catch (error) {
     // A newer revision from another device: the page reloads its history and a fresh report follows.
-    saveState.value = error instanceof StaleRevisionError ? 'idle' : 'failed';
+    saveState.value = error instanceof StaleRevisionError ? 'idle' : error instanceof CapacityError ? 'full' : 'failed';
   }
 }
 onMounted(loadList);
@@ -58,6 +58,7 @@ const statusText = computed(() => ({
   idle: '', saving: 'Saving this overview as a report…', saved: 'This overview was saved as a new report.', unchanged: 'This overview matches a saved report; nothing new was saved.',
   failed: 'This overview could not be saved as a report. It is still shown above; it will be saved the next time the Overview opens.',
   skipped: 'This overview is not saved because part of it is unavailable (workout sets did not load).',
+  full: 'This overview was not saved as a report because the free database is nearly full. Free space in Imports & Settings (Version retention); nothing else was changed.',
 }[saveState.value]));
 </script>
 
