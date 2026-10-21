@@ -1,6 +1,6 @@
 # Fitness Insights
 
-A personal Vue/TypeScript/Vite workspace for nutrition and training analysis. This implementation covers ticket 01: GitHub sign-in, owner-only preference storage, responsive navigation, and honest empty states. It is live at https://tslagowski.github.io/fitness-insights/ (verified 2026-10-19). Ticket 02 adds MacroFactor workbook imports of daily history (weight, trend weight, expenditure, nutrition totals, targets, steps) with preview, atomic commit, and a private raw-file archive. Food/workout detail imports and analytics are not implemented yet.
+A personal Vue/TypeScript/Vite workspace for nutrition and training analysis from MacroFactor exports, hosted on GitHub Pages with Supabase Free at https://tslagowski.github.io/fitness-insights/. It covers owner-only GitHub sign-in; workbook, food CSV, and workout CSV imports with previews, corrections, undo, and a private archive of the original files; review of suspicious weigh-ins and incomplete days; intake, modeled energy balance, weight, steps, and exercise progress analysis; an evidence-backed written overview with immutable saved reports; version retention; portable backup and restore; and free-tier capacity protection with recovery guidance. See [docs/operations.md](docs/operations.md) for the weekly routine, limitations, recovery, retention, and portability.
 
 ## Run locally
 
@@ -68,7 +68,7 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 - `src/components/`: the data status, review queue, and incomplete-days panels, the import panel, daily history table, food log, training log with exercise aliases, Correct a day panel, and change history with Undo.
 - `supabase/migrations`: owner allowlist, row-level access rules, revisioned daily history with the atomic `commit_import` function, and the private source archive bucket.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is done; ticket 06 is deployed and awaiting owner review; tickets 07-13 are implemented and awaiting owner review.
+- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is done; ticket 06 is deployed and awaiting owner review; tickets 07-13 are implemented and awaiting owner review; ticket 14 awaits owner verification.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.

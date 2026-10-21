@@ -1,6 +1,6 @@
 # 13: Recover safely from service and quota failures
 
-**Status:** in-progress (implemented 2026-10-21; owner review on the hosted app pending)
+**Status:** in-progress (deployed 2026-10-21: migration run 39536608971, Check 39536608936, Deploy 39536757095; owner review pending)
 
 **What to build:** Receive actionable recovery guidance when a free service is paused, connectivity fails, or an import cannot fit, then retry safely after the condition is resolved.
 
@@ -26,4 +26,4 @@ Verified locally:
 - 2 Chromium tests at 390px (usage meters and recovery steps; paused service guidance with no changes); screenshot inspected.
 - Full suite: 157 unit/UI/database tests and 13 browser tests pass; typecheck and production build pass (exit codes checked).
 
-Not yet verified: the migration on Supabase, and a real paused-project resume.
+The live anonymous probe (all 14 tables, 17 functions, archive list/upload refused) passed after deployment. Not yet verified: a real paused-project resume.

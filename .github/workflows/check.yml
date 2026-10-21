@@ -17,5 +17,6 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: node scripts/check-public-safety.mjs
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser

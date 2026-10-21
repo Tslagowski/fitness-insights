@@ -10,7 +10,8 @@
     "test:watch": "vitest",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "check:safety": "node scripts/check-public-safety.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.116.0",

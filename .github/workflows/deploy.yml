@@ -32,6 +32,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Check the build holds no personal exports or credentials
+        run: node scripts/check-public-safety.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -39,3 +41,5 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Confirm the hosted project refuses anonymous access
+        run: node scripts/probe-anonymous-access.mjs
