@@ -1,6 +1,6 @@
 # 11: Browse immutable report and import history
 
-**Status:** in-progress (implemented 2026-10-21; owner review on the hosted app pending)
+**Status:** in-progress (deployed 2026-10-21: migration run 39534003924, Check 39534003695, Deploy 39534136852; anonymous `save_report`, `prune_history`, and `reports` refused with 42501; owner review pending)
 
 **What to build:** Browse prior imports and written reports, compare an old report with the current one, and retain recent recovery versions while preserving accumulated history.
 
@@ -26,4 +26,4 @@ Verified locally:
 - 1 Chromium test at 390px (written overview with evidence, save, open, compare, no horizontal overflow); screenshots inspected.
 - Full suite: 138 unit/UI/database tests and 10 browser tests pass; typecheck and production build pass (exit codes checked).
 
-Capacity checks before saving are ticket 13. Not yet verified: the migration on Supabase and owner review.
+Capacity checks before saving are ticket 13. Not yet verified: owner review on the hosted app.

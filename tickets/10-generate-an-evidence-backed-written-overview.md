@@ -1,6 +1,6 @@
 # 10: Generate an evidence-backed written overview
 
-**Status:** in-progress (implemented 2026-10-20; owner review on the hosted app pending)
+**Status:** in-progress (deployed 2026-10-21 with ticket 11: Deploy 39534136852; owner review pending)
 
 **What to build:** Open Overview after an import and read concise descriptive findings about intake, weight/activity, and exercise changes, with links to their supporting analysis.
 
