@@ -61,11 +61,12 @@ No custom domain, paid model API, or paid hosting is needed. If the free databas
 - `src/analysis/eligibility.ts`: completed-day eligibility, import cutoffs, weight review flags, and completeness (ticket 06), shared by later analysis.
 - `src/analysis/periods.ts`: shared 7/28/custom periods, coverage gates, and the least-squares slope.
 - `src/analysis/trends.ts`: scale weight, trend-weight rate, and steps per period (ticket 08).
+- `src/analysis/exercise.ts`: exercise progress labels, movement semantics, and weekly working sets (ticket 09).
 - `src/analysis/intake.ts`: intake distribution, target difference, and modeled energy balance per period with coverage gates (ticket 07).
 - `src/components/`: the data status, review queue, and incomplete-days panels, the import panel, daily history table, food log, training log with exercise aliases, Correct a day panel, and change history with Undo.
 - `supabase/migrations`: owner allowlist, row-level access rules, revisioned daily history with the atomic `commit_import` function, and the private source archive bucket.
 - `tests`: UI behavior, actual database policy tests, browser transport tests.
-- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is done; ticket 06 is deployed and awaiting owner review; tickets 07 and 08 are implemented and awaiting owner review.
+- `tickets`: approved work and blocking dependencies; tickets 01 and 02 are done; ticket 03 is done; ticket 04 is done; ticket 05 is done; ticket 06 is deployed and awaiting owner review; tickets 07-09 are implemented and awaiting owner review.
 - `CONTEXT.md` and `docs/adr`: terminology and selected architecture.
 
 Dependencies are pinned with a lockfile. TypeScript is pinned to a version compatible with the installed Vue type checker. Preferences are fetched on page load/auth changes; another device sees the new value on refresh, not via a realtime subscription.
@@ -201,4 +202,14 @@ One period picker at the top of Nutrition & Weight scopes every section, so they
 - **Steps** average observed eligible days only, with their own coverage; missing nutrition or workouts never hides weight or steps (when no intake exists, the period ends at the latest confirmed day with weight or steps).
 - Trend values that may reflect a questioned weigh-in keep their † warning after a scale value is excluded.
 - Tapping a day shows its scale, trend, and steps values with their status; the date table and formulas are listed below the charts.
+
+## Exercise progress (ticket 09)
+
+Training opens with **Exercise progress**, computed by `src/analysis/exercise.ts` (method `exercise-v1`) over every active workout set (`active_workout_sets()`), on completed days confirmed by an import only.
+
+- **Score:** logged load × (1 + reps ÷ 30) for qualifying sets (positive load, 1–10 reps, Standard or Failure; never warm-ups). Loads and reps are used exactly as logged (per hand, per side); base, machine, and body weight are never added; no RIR correction.
+- **Label:** best qualifying set per session, median of the latest 3 sessions vs the 3 before. Above +band Progressing, below −band Declining, otherwise Stable (band 2.5% by default, adjustable in Imports & Settings and saved as `preferences.strength_band_percent`). Fewer than 6 qualifying sessions: Insufficient data.
+- **Movement types:** assisted (negative weight), bodyweight or zero-load, and timed movements are not scored and show least assistance, reps, or duration. Movements mixing positive loads with assisted or timed sets get no single label.
+- **Evidence:** the compared sessions with dates, best set, score, working sets, and logged-load volume; reps at loads used in both groups; a score chart with group medians. Display aliases group logged names explicitly and list them.
+- **Weekly working sets** count every non-warm-up set (blank-load sets included) per Monday-start week; weeks not yet confirmed by an import are marked.
 

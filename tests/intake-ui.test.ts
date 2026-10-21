@@ -19,6 +19,7 @@ async function seeded(rows = Array.from({ length: 56 }, (_, index) => {
   return dailyRow(date, { 'Calories (kcal)': calories, Expenditure: 2500, 'Target Calories (kcal)': 2400 });
 })) {
   const gateway = new MemoryGateway();
+  gateway.clock = Date.now();
   await gateway.commitSources({ requestId: 'seed', expectedRevisionId: null, acceptReconciliation: false, food: [], workouts: [],
     daily: parseWorkbook(syntheticWorkbook(rows)).records, sources: [{ name: 'export.xlsx', kind: 'workbook', sha256: 'a'.repeat(64), byteSize: 1, mediaType: 'x', bytes: new Uint8Array() }] });
   return gateway;

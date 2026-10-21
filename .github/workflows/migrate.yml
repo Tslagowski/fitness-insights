@@ -41,7 +41,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npx vitest run tests/access.test.ts tests/import-database.test.ts
+      - run: npx vitest run tests/access.test.ts tests/*-database.test.ts
       - uses: supabase/setup-cli@v3
         with:
           version: 2.121.0

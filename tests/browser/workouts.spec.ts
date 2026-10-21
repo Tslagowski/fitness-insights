@@ -25,6 +25,7 @@ test('on a phone, the owner imports workouts, reads sessions as logged, and alia
       const day = workoutDays.find((item) => item.date === request.postDataJSON().p_date);
       return route.fulfill({ json: day ? { date: day.date, source_kind: day.source_kind, sets: day.sets, revision_id: revisionId } : null });
     }
+    if (name === 'active_workout_sets') return route.fulfill({ json: workoutDays.map((day) => ({ ...day, revision_id: revisionId })) });
     if (name === 'exercise_aliases') {
       const body = request.postDataJSON();
       const row = Array.isArray(body) ? body[0] : body;

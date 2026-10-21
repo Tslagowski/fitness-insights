@@ -10,6 +10,7 @@ import type { WorkoutSet, WorkoutSource } from './import/workout';
 import type { CompletenessStatus, ReviewChoice, ReviewState } from './analysis/eligibility';
 
 const archiveBucket = 'source-archives';
+const preferenceColumns = 'display_density,timezone,week_starts_on,duration_unit,strength_band_percent';
 
 function decodePreferences(value: unknown): Preferences {
   const record = value as Record<string, unknown> | null;
@@ -17,7 +18,9 @@ function decodePreferences(value: unknown): Preferences {
       record.timezone !== 'America/Denver' || record.week_starts_on !== 1 || !['seconds', 'minutes', undefined].includes(record.duration_unit as string | undefined)) {
     throw new Error('Unsupported saved preference values.');
   }
-  return { displayDensity: record.display_density as DisplayDensity, timezone: 'America/Denver', weekStartsOn: 1, durationUnit: record.duration_unit === 'minutes' ? 'minutes' : 'seconds' };
+  const band = record.strength_band_percent === undefined || record.strength_band_percent === null ? 2.5 : Number(record.strength_band_percent);
+  if (!Number.isFinite(band) || band < 0.5 || band > 20) throw new Error('Unsupported saved preference values.');
+  return { displayDensity: record.display_density as DisplayDensity, timezone: 'America/Denver', weekStartsOn: 1, durationUnit: record.duration_unit === 'minutes' ? 'minutes' : 'seconds', strengthBandPercent: band };
 }
 
 export function createGateway(url: string, publishableKey: string, redirectUrl: string): Gateway {
@@ -43,17 +46,18 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
     },
     async loadPreferences(userId) {
       const { data, error } = await client.from('preferences')
-        .select('display_density,timezone,week_starts_on,duration_unit').eq('user_id', userId).maybeSingle();
+        .select(preferenceColumns).eq('user_id', userId).maybeSingle();
       if (error) throw error;
       return data ? decodePreferences(data) : { ...defaultPreferences };
     },
     async savePreferences(userId, changes) {
-      const row: Record<string, string> = { user_id: userId };
+      const row: Record<string, string | number> = { user_id: userId };
+      if (changes.strengthBandPercent !== undefined) row.strength_band_percent = changes.strengthBandPercent;
       if (changes.displayDensity) row.display_density = changes.displayDensity;
       if (changes.durationUnit) row.duration_unit = changes.durationUnit;
       const { data, error } = await client.from('preferences')
         .upsert(row, { onConflict: 'user_id' })
-        .select('display_density,timezone,week_starts_on,duration_unit').single();
+        .select(preferenceColumns).single();
       if (error) throw error;
       return decodePreferences(data);
     },
@@ -93,6 +97,12 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
       if (!data) return null;
       const day = data as Record<string, unknown>;
       return { date: String(day.date), source: day.source_kind as WorkoutSource, sets: day.sets as WorkoutSet[], revisionId: Number(day.revision_id) };
+    },
+    async loadWorkoutHistory(): Promise<SavedWorkoutDay[]> {
+      const { data, error } = await client.rpc('active_workout_sets');
+      if (error) throw translateError(error);
+      return ((data ?? []) as Array<Record<string, unknown>>).map((day) => ({
+        date: String(day.date), source: day.source_kind as WorkoutSource, sets: day.sets as WorkoutSet[], revisionId: Number(day.revision_id) }));
     },
     async saveExerciseAlias(sourceName, displayName) {
       const { error } = displayName && displayName.trim()

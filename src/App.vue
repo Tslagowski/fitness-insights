@@ -13,6 +13,7 @@ import DailyTable from './components/DailyTable.vue';
 import CorrectDay from './components/CorrectDay.vue';
 import ChangeHistory from './components/ChangeHistory.vue';
 import NutritionAnalysis from './components/NutritionAnalysis.vue';
+import ExerciseProgress from './components/ExerciseProgress.vue';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
 const props = defineProps<{ gateway: Gateway | null; configurationProblem?: string }>();
@@ -29,6 +30,7 @@ const identity = ref<Identity | null>(null);
 const preferences = ref<Preferences>({ ...defaultPreferences });
 const draftDensity = ref<DisplayDensity>('comfortable');
 const draftDurationUnit = ref<DurationUnit>('seconds');
+const draftBand = ref(defaultPreferences.strengthBandPercent);
 const notice = ref('');
 const error = ref('');
 const saving = ref(false);
@@ -75,6 +77,7 @@ async function refreshIdentity() {
     preferences.value = savedPreferences;
     draftDensity.value = savedPreferences.displayDensity;
     draftDurationUnit.value = savedPreferences.durationUnit;
+    draftBand.value = savedPreferences.strengthBandPercent;
     state.value = 'ready';
     void reloadHistory();
   } catch {
@@ -134,7 +137,7 @@ async function save() {
   error.value = '';
   notice.value = '';
   try {
-    const saved = await props.gateway.savePreferences(identity.value.id, { displayDensity: draftDensity.value, durationUnit: draftDurationUnit.value });
+    const saved = await props.gateway.savePreferences(identity.value.id, { displayDensity: draftDensity.value, durationUnit: draftDurationUnit.value, strengthBandPercent: Math.min(20, Math.max(0.5, Number(draftBand.value) || defaultPreferences.strengthBandPercent)) });
     if (currentRevision !== revision) return;
     preferences.value = saved;
     notice.value = 'Preference saved. It will be available when you open another device.';
@@ -225,6 +228,9 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
                 <label class="field-label" for="duration-unit">Workout duration values</label>
                 <p class="field-help">MacroFactor exports durations without a unit. They are read as seconds by default; this is a provisional assumption until one workout is checked against the app. Raw values are always kept.</p>
                 <select id="duration-unit" aria-label="Workout duration unit" v-model="draftDurationUnit" :disabled="saving"><option value="seconds">Seconds (provisional default)</option><option value="minutes">Minutes</option></select>
+                <label class="field-label band-label" for="strength-band">Exercise progress label band (%)</label>
+                <p class="field-help">A change in median best score above +band is labeled Progressing, below −band Declining, otherwise Stable. The accepted default is 2.5%. This is a display heuristic, not statistical significance.</p>
+                <input id="strength-band" v-model.number="draftBand" class="text-input band-input" type="number" min="0.5" max="20" step="0.5" inputmode="decimal" :disabled="saving" />
                 <div class="form-footer"><span class="muted">Applies after saving.</span><button class="primary-button" type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save preference' }}</button></div>
               </form>
             </section>
@@ -245,7 +251,10 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <ReviewQueue :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
             <CompletenessPanel :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
           </template>
-          <TrainingLog v-else-if="page === 'training' && gateway && history.workoutDays.length" :gateway="gateway" :history="history" :duration-unit="preferences.durationUnit" :today="reportingToday()" :reload-history="reloadHistory" />
+          <template v-else-if="page === 'training' && gateway && history.workoutDays.length">
+            <ExerciseProgress :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
+            <TrainingLog :gateway="gateway" :history="history" :duration-unit="preferences.durationUnit" :today="reportingToday()" :reload-history="reloadHistory" />
+          </template>
           <section v-else-if="page === 'nutrition' && historyState === 'error'" class="empty-card"><h2>Your saved history could not be loaded.</h2><p>Nothing has been changed. If the free service is paused, resume the project and retry.</p><button class="primary-button" @click="reloadHistory">Try again</button></section>
           <section v-else class="empty-card data-empty"><div class="empty-mark" aria-hidden="true"><span></span><span></span><span></span></div>
             <div class="eyebrow">YOUR STARTING POINT</div>

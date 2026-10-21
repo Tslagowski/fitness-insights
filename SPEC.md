@@ -211,7 +211,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 06 | Suspicious-value and incomplete-day review | Implemented; live verification pending |
 | 07 | Intake and modeled energy balance | Implemented; owner review pending |
 | 08 | Weight and activity comparisons | Implemented; owner review pending |
-| 09 | Exercise performance and workload | Pending |
+| 09 | Exercise performance and workload | Implemented; owner review pending |
 | 10 | Evidence-backed written overview | Pending |
 | 11 | Immutable report/import history | Pending |
 | 12 | Portable backup and restore | Pending |

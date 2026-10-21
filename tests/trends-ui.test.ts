@@ -13,6 +13,7 @@ const yesterday = addDays(reportingToday(), -1);
 
 async function seeded(rows: FixtureValue[][]) {
   const gateway = new MemoryGateway();
+  gateway.clock = Date.now();
   await gateway.commitSources({ requestId: 'seed', expectedRevisionId: null, acceptReconciliation: false, food: [], workouts: [],
     daily: parseWorkbook(syntheticWorkbook(rows)).records, sources: [{ name: 'export.xlsx', kind: 'workbook', sha256: 'a'.repeat(64), byteSize: 1, mediaType: 'x', bytes: new Uint8Array() }] });
   return gateway;

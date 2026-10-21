@@ -119,3 +119,23 @@ test('aliases and the duration unit are owner settings; workout data is private'
     await expect(database.query('delete from public.workout_days')).rejects.toThrow(/permission denied/);
   });
 });
+
+test('exercise analysis reads every active workout day in one owner-only call; the label band is a bounded setting', async () => {
+  await asOwner(async () => {
+    const days = await call<Array<{ date: string; sets: WorkoutSet[] }>>('public.active_workout_sets()', []);
+    expect(days.length).toBeGreaterThan(0);
+    expect(days.map((item) => item.date)).toEqual([...days.map((item) => item.date)].sort());
+    const active = await activeWorkouts();
+    expect(Object.fromEntries(days.map((item) => [item.date, item.sets]))).toEqual(Object.fromEntries(Object.entries(active).map(([date, value]) => [date, value.sets])));
+    expect((await database.query<{ band: string }>('select strength_band_percent::text as band from public.preferences')).rows).toEqual([{ band: '2.5' }]);
+    await database.query('update public.preferences set strength_band_percent = 5');
+    await expect(database.query('update public.preferences set strength_band_percent = 0')).rejects.toThrow();
+    await expect(database.query('update public.preferences set strength_band_percent = 25')).rejects.toThrow();
+  });
+  await asIdentity(database, 'authenticated', strangerId, async () => {
+    expect(await call('public.active_workout_sets()', [])).toEqual([]);
+  });
+  await asIdentity(database, 'anon', '', async () => {
+    await expect(call('public.active_workout_sets()', [])).rejects.toThrow(/permission denied/);
+  });
+});

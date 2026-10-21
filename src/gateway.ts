@@ -17,9 +17,11 @@ export interface Preferences {
   weekStartsOn: 1;
   /** Provisional interpretation of exported duration values (unverified against the source app). */
   durationUnit: DurationUnit;
+  /** Exercise progress label band in percent: above +band Progressing, below -band Declining (accepted default 2.5). */
+  strengthBandPercent: number;
 }
 
-export type PreferenceChanges = Partial<Pick<Preferences, 'displayDensity' | 'durationUnit'>>;
+export type PreferenceChanges = Partial<Pick<Preferences, 'displayDensity' | 'durationUnit' | 'strengthBandPercent'>>;
 
 export interface Gateway {
   getIdentity(): Promise<Identity | null>;
@@ -35,6 +37,8 @@ export interface Gateway {
   loadFoodDay(date: string): Promise<SavedFoodDay | null>;
   /** The saved sets of one workout day, or null if none. */
   loadWorkoutDay(date: string): Promise<SavedWorkoutDay | null>;
+  /** Every active workout day with its sets, oldest first (for exercise analysis). */
+  loadWorkoutHistory(): Promise<SavedWorkoutDay[]>;
   /** Sets (or, with null, removes) the cosmetic display name for a logged exercise name. Raw records are unchanged. */
   saveExerciseAlias(sourceName: string, displayName: string | null): Promise<void>;
   /** Records the owner's decision about one specific saved value (latest decision wins). */
@@ -254,4 +258,5 @@ export const defaultPreferences: Preferences = {
   timezone: 'America/Denver',
   weekStartsOn: 1,
   durationUnit: 'seconds',
+  strengthBandPercent: 2.5,
 };

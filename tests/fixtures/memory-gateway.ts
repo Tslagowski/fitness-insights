@@ -28,10 +28,12 @@ export class MemoryGateway implements Gateway {
   owner = true;
   density: DisplayDensity = 'comfortable';
   durationUnit: DurationUnit = 'seconds';
+  strengthBandPercent = 2.5;
   aliases: Record<string, string> = {};
   review: ReviewState = { decisions: [], completeness: [] };
   failSave = false;
   failWrites = false;
+  failReads = false;
   listener = () => {};
   revisionId: number | null = null;
   rows: Row[] = [];
@@ -40,15 +42,17 @@ export class MemoryGateway implements Gateway {
   events: Event[] = [];
   calls: Array<{ method: string; requestId?: string; expectedRevisionId: number | null }> = [];
   private nextRevision = 1;
-  private clock = Date.UTC(2026, 9, 20, 15);
+  /** Commit time of the next change; tests whose dates are relative to today set it to Date.now(). */
+  clock = Date.UTC(2026, 9, 20, 15);
 
   async getIdentity() { return this.identity; }
   async isOwner() { return this.owner; }
-  async loadPreferences() { return { ...defaultPreferences, displayDensity: this.density, durationUnit: this.durationUnit }; }
+  async loadPreferences() { return { ...defaultPreferences, displayDensity: this.density, durationUnit: this.durationUnit, strengthBandPercent: this.strengthBandPercent }; }
   async savePreferences(_userId: string, changes: PreferenceChanges) {
     if (this.failSave) throw new Error('Network unavailable');
     if (changes.displayDensity) this.density = changes.displayDensity;
     if (changes.durationUnit) this.durationUnit = changes.durationUnit;
+    if (changes.strengthBandPercent !== undefined) this.strengthBandPercent = changes.strengthBandPercent;
     return this.loadPreferences();
   }
   async signIn() {}
@@ -92,6 +96,12 @@ export class MemoryGateway implements Gateway {
   async loadWorkoutDay(date: string): Promise<SavedWorkoutDay | null> {
     const row = this.activeWorkouts.find((item) => item.date === date);
     return row ? { date: row.date, source: row.source, sets: row.sets.map((set) => ({ ...set })), revisionId: row.introduced } : null;
+  }
+
+  async loadWorkoutHistory(): Promise<SavedWorkoutDay[]> {
+    if (this.failReads) throw new Error('Network unavailable');
+    return [...this.activeWorkouts].sort((left, right) => left.date.localeCompare(right.date))
+      .map((row) => ({ date: row.date, source: row.source, sets: row.sets.map((set) => ({ ...set })), revisionId: row.introduced }));
   }
 
   async saveReviewDecision(decision: { date: string; domain: 'scale_weight'; field: string; value: number; decision: ReviewChoice }) {
