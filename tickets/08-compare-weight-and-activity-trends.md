@@ -1,6 +1,6 @@
 # 08: Compare weight and activity trends
 
-**Status:** in-progress (implemented 2026-10-20; owner review on the hosted app pending)
+**Status:** in-progress (deployed 2026-10-21 with ticket 09: Deploy 39532566981; owner review pending)
 
 **What to build:** Explore scale weight, source trend weight, and steps across periods, seeing how coverage and exclusions affect the displayed changes.
 

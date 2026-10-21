@@ -1,6 +1,6 @@
 # 09: Compare exercise performance and workload
 
-**Status:** in-progress (implemented 2026-10-20; owner review on the hosted app pending)
+**Status:** in-progress (deployed 2026-10-21: migration run 39532437454, Check 39532437430, Deploy 39532566981; anonymous calls to `active_workout_sets` refused with 42501; owner review pending)
 
 **What to build:** Select an exercise, inspect progression over six comparable sessions, and browse working-set volume, assistance/reps, or duration using the appropriate movement semantics.
 
@@ -27,4 +27,4 @@ Verified locally:
 - 4 UI tests (label and evidence excluding today's session; assisted movement not scored; band changes the label and saves; failed load with retry) and 1 Chromium test at 390px (label, timed movement, no horizontal overflow); screenshot inspected.
 - Full suite: 124 unit/UI/database tests and 9 browser tests pass; typecheck and production build pass (exit codes checked).
 
-Not yet verified: the migration on Supabase and owner review with real workouts.
+Not yet verified: owner review with real workouts. The migration was applied by run 39532437454.
