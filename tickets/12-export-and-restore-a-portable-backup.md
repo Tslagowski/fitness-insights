@@ -1,6 +1,6 @@
 # 12: Export and restore a portable backup
 
-**Status:** in-progress (implemented 2026-10-21; owner review on the hosted app pending)
+**Status:** in-progress (deployed 2026-10-21: migration run 39535531074, Check 39535531031, Deploy 39535652884; anonymous backup, capacity, restore, and staging requests refused with 42501; owner review pending)
 
 **What to build:** Download a self-contained backup and restore it through an explicit validation/preview workflow, recovering personal history and saved reports on a clean installation.
 
@@ -26,4 +26,4 @@ Verified locally:
 - 1 Chromium test at 390px with mocked transport (real ZIP download, file selection, checksum preview, restore call order, no horizontal overflow); screenshot inspected. A 1px overflow from the native file input in compact density was fixed.
 - Full suite: 148 unit/UI/database tests and 11 browser tests pass; typecheck and production build pass (exit codes checked).
 
-Not yet verified: the migration on Supabase, a real download/restore round trip against the hosted service, and request-size limits for large restores (chunks are capped at 500 rows or about 1 MB).
+Not yet verified: a real download/restore round trip against the hosted service, and request-size limits for large restores (chunks are capped at 500 rows or about 1 MB).
