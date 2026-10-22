@@ -3,8 +3,10 @@ import { computed, ref, watch } from 'vue';
 import type { ImportedHistory } from '../gateway';
 import { reasonLabels, type EligibilityReport, type Eligibility } from '../analysis/eligibility';
 import { analyzeIntake, anchorDate, intakeMethodVersion, type IntakeDay, type Period, type WindowChoice } from '../analysis/intake';
-import { formatCalendarDate, plural } from '../import/preview';
+import { formatCalendarDate, formatShortDate, plural } from '../import/preview';
 import IntakeCharts from './IntakeCharts.vue';
+import DataRows, { type DataRow } from './DataRows.vue';
+import { useNarrow } from './use-narrow';
 
 const props = defineProps<{ history: ImportedHistory; report: EligibilityReport; choice: WindowChoice }>();
 
@@ -93,6 +95,16 @@ const freshness = computed(() => {
   const parts = [cutoffs.food ? `food entries complete through ${formatCalendarDate(cutoffs.food)}` : '', cutoffs.daily ? `workbook data complete through ${formatCalendarDate(cutoffs.daily)}` : ''].filter(Boolean);
   return parts.join('; ');
 });
+
+const narrow = useNarrow();
+const dateRows = computed<DataRow[]>(() => [...(current.value?.days ?? [])].reverse().map((day) => {
+  const status = statusText(day.intakeStatus, day.intake);
+  return {
+    key: day.date, date: day.date, heading: formatShortDate(day.date), tag: status === 'Counted' ? undefined : status, dimmed: !day.intakeIncluded,
+    primary: day.intake === null ? '—' : `${kcal(day.intake)} kcal`,
+    secondary: `balance ${day.balance === null ? '—' : signed(day.balance, '')} · expenditure ${day.expenditure === null ? '—' : kcal(day.expenditure)}${day.expenditure !== null && !day.expenditureStatus.eligible ? ' (not counted)' : ''} · target ${day.target === null ? '—' : kcal(day.target)} · ${sourceText(day)}`,
+  };
+}));
 </script>
 
 <template>
@@ -148,7 +160,8 @@ const freshness = computed(() => {
 
       <details class="preview-section">
         <summary>Dates behind these numbers ({{ current.days.length }})</summary>
-        <div class="table-scroll" role="region" aria-label="Dates behind these numbers" tabindex="0">
+        <DataRows v-if="narrow" :rows="dateRows" label="Dates behind these numbers" :selected="selected" @select="selected = $event" />
+        <div v-else class="table-scroll" role="region" aria-label="Dates behind these numbers" tabindex="0">
           <table class="period-table">
             <caption class="visually-hidden">Every date in {{ range(current) }} and whether it was counted</caption>
             <thead><tr><th scope="col">Date</th><th scope="col">Intake (kcal)</th><th scope="col">Source</th><th scope="col">Intake status</th><th scope="col">Expenditure (kcal)</th><th scope="col">Balance (kcal)</th><th scope="col">Target (kcal)</th></tr></thead>

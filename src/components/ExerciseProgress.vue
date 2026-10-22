@@ -4,8 +4,10 @@ import type { Gateway, ImportedHistory, Preferences, SavedWorkoutDay } from '../
 import type { EligibilityReport } from '../analysis/eligibility';
 import { analyzeExercises, exerciseMethodVersion, maximumReps, minimumReps, movementLabels, sessionsPerGroup, type ExerciseSession, type ProgressLabel } from '../analysis/exercise';
 import { formatDuration } from '../import/workout';
-import { formatCalendarDate, plural } from '../import/preview';
+import { formatCalendarDate, formatShortDate, plural } from '../import/preview';
 import ExerciseCharts from './ExerciseCharts.vue';
+import DataRows, { type DataRow } from './DataRows.vue';
+import { useNarrow } from './use-narrow';
 
 const props = defineProps<{ gateway: Gateway; history: ImportedHistory; report: EligibilityReport; preferences: Preferences }>();
 
@@ -56,6 +58,26 @@ const leftOutText = computed(() => {
   if (!counts) return '';
   return [counts.today ? 'today (in progress)' : '', counts.future ? plural(counts.future, 'planned future day') : '', counts.unconfirmed ? plural(counts.unconfirmed, 'day not yet confirmed by a later import') : ''].filter(Boolean).join(', ');
 });
+
+const narrow = useNarrow();
+const exerciseRows = computed<DataRow[]>(() => recentExercises.value.map((item) => ({
+  key: item.name, heading: item.name, primary: `${icons[item.comparison.label]} ${item.comparison.label}`,
+  secondary: `last ${formatCalendarDate(item.lastDate)}${item.comparison.changePercent === null ? '' : ` · ${percent(item.comparison.changePercent)}`}`,
+})));
+const sessionRows = computed<DataRow[]>(() => shownSessions.value.map((session) => {
+  const parts: string[] = [];
+  if (showLoad.value) parts.push(session.best ? `score ${score(session.best.score)}` : 'no qualifying set');
+  if (showAssist.value && session.leastAssistance) parts.push(`least assistance ${lb(session.leastAssistance.load)} × ${session.leastAssistance.reps ?? '—'}`);
+  if (showReps.value && session.bodyweightReps) parts.push(`reps ${session.bodyweightReps.max} max / ${session.bodyweightReps.total} total`);
+  if (showTime.value) parts.push(`longest ${duration(session.longestDuration)}`);
+  parts.push(plural(session.workingSets, 'working set'));
+  if (showLoad.value && session.loggedLoadVolume !== null) parts.push(`${session.loggedLoadVolume.toLocaleString('en-US')} lb·reps`);
+  if (session.workout) parts.push(session.workout);
+  const primary = showLoad.value && session.best ? `${lb(session.best.load)} × ${session.best.reps}`
+    : session.leastAssistance ? `${lb(session.leastAssistance.load)} × ${session.leastAssistance.reps ?? '—'}`
+    : session.bodyweightReps ? `${session.bodyweightReps.max} reps` : session.longestDuration !== null ? formatDuration(session.longestDuration, props.preferences.durationUnit) : '—';
+  return { key: sessionKey(session), date: session.date, heading: formatShortDate(session.date), tag: groupOf(session) || undefined, primary, secondary: parts.join(' · ') };
+}));
 </script>
 
 <template>
@@ -70,7 +92,8 @@ const leftOutText = computed(() => {
         <p class="field-help">{{ plural(analysis.exercises.length, 'exercise') }} with completed sessions{{ analysis.cutoff ? ` through ${formatCalendarDate(analysis.cutoff)}` : '' }}.
           <template v-if="leftOutText">Left out of comparisons: {{ leftOutText }}.</template> Loads and reps are used exactly as logged (per hand, per side); base, machine, and body weight are never added.</p>
 
-        <div class="table-scroll" role="region" aria-label="Recently trained exercises" tabindex="0">
+        <DataRows v-if="narrow" :rows="exerciseRows" label="Recently trained exercises" :group-by-month="false" :selected="selectedName" @select="selectedName = $event" />
+        <div v-else class="table-scroll" role="region" aria-label="Recently trained exercises" tabindex="0">
           <table class="period-table exercise-table">
             <caption class="visually-hidden">Recently trained exercises and their progress labels</caption>
             <thead><tr><th scope="col">Exercise</th><th scope="col">Last session</th><th scope="col">Label</th><th scope="col">Change</th></tr></thead>
@@ -113,7 +136,8 @@ const leftOutText = computed(() => {
             </table>
           </div>
 
-          <div class="table-scroll" role="region" aria-label="Sessions" tabindex="0">
+          <template v-if="narrow"><h4 class="rows-title">Latest {{ shownSessions.length }} sessions</h4><DataRows :rows="sessionRows" label="Sessions" /></template>
+          <div v-else class="table-scroll" role="region" aria-label="Sessions" tabindex="0">
             <table class="period-table">
               <caption>Latest {{ shownSessions.length }} sessions (newest first)</caption>
               <thead><tr><th scope="col">Date</th><th scope="col">Group</th>

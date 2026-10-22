@@ -44,7 +44,7 @@ test('on a phone, the owner reads an exercise progress label with its sessions a
 
   await section.locator('#exercise-select').selectOption('Plank');
   await expect(section.getByLabel('Selected exercise')).toContainText('Timed');
-  await expect(section.getByLabel('Sessions')).toContainText('90 (1 min 30 s)');
+  await expect(section.getByLabel('Selected exercise')).toContainText('longest 90 (1 min 30 s)');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await context.close();
 });

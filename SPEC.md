@@ -228,7 +228,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 23 | Track training effort and rep ranges | Ready (issue #8) |
 | 24 | Find what precedes your best and worst sessions | Ready (issue #9) |
 | 25 | Add long-range reviews and dated notes | Ready (issue #10) |
-| 26 | Make data lists readable on phones | Ready (issue #11) |
+| 26 | Make data lists readable on phones | Implemented; owner review pending (issue #11) |
 
 ## 7. Acceptance criteria
 

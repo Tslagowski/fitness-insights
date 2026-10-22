@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { FoodDaySummary } from '../gateway';
 import type { DayStatus } from '../analysis/eligibility';
 import type { DailyDomain, DailyRecord, DailyValues } from '../import/workbook';
-import { dailyIntake, formatCalendarDate, formatValue } from '../import/preview';
+import { dailyIntake, formatCalendarDate, formatShortDate, formatValue } from '../import/preview';
+import DataRows, { type DataRow } from './DataRows.vue';
+import { useNarrow } from './use-narrow';
 
 const props = defineProps<{ records: DailyRecord[]; foodDays: FoodDaySummary[]; today: string; caption: string; statuses?: DayStatus[] }>();
 
@@ -54,10 +56,41 @@ const rows = computed(() => {
     };
   });
 });
+
+// Phones: one group of values at a time, as month-grouped rows.
+const narrow = useNarrow();
+const view = ref<'intake' | 'weight' | 'activity'>('intake');
+const views = [{ id: 'intake', label: 'Intake' }, { id: 'weight', label: 'Weight' }, { id: 'activity', label: 'Activity' }] as const;
+const withUnit = (value: string, unit: string) => (value === '—' ? '—' : `${value} ${unit}`);
+const mobileRows = computed<DataRow[]>(() => rows.value.map((row) => {
+  const [scale, trend, expenditure] = row.measurements;
+  const [calories, protein, fat, carbs] = row.intake;
+  const [target, steps] = row.trailing;
+  const content = view.value === 'weight'
+    ? { primary: withUnit(scale, 'lb'), secondary: `trend ${trend} · expenditure ${withUnit(expenditure, 'kcal')}` }
+    : view.value === 'activity'
+      ? { primary: withUnit(steps, 'steps'), secondary: `expenditure ${withUnit(expenditure, 'kcal')}` }
+      : { primary: withUnit(calories, 'kcal'), secondary: `P ${protein} · F ${fat} · C ${carbs} · target ${target} · ${row.source}` };
+  return {
+    key: row.date, date: row.date, heading: formatShortDate(row.date), tag: row.status || undefined, dimmed: row.planned, ...content,
+    details: [
+      ...measurementColumns.map((column, index) => ({ label: column.label, value: row.measurements[index] })),
+      { label: 'Intake (kcal)', value: calories }, { label: 'Protein (g)', value: protein }, { label: 'Fat (g)', value: fat }, { label: 'Carbs (g)', value: carbs },
+      { label: 'Intake source', value: row.source },
+      ...trailingColumns.map((column, index) => ({ label: column.label, value: row.trailing[index] })),
+    ],
+  };
+}));
 </script>
 
 <template>
-  <div class="table-scroll" role="region" :aria-label="caption" tabindex="0">
+  <template v-if="narrow">
+    <div class="segmented view-switch" role="group" :aria-label="`${caption}: values shown`">
+      <button v-for="item in views" :key="item.id" type="button" :aria-pressed="view === item.id" @click="view = item.id">{{ item.label }}</button>
+    </div>
+    <DataRows :rows="mobileRows" :label="caption" :page-size="30" unit="days" />
+  </template>
+  <div v-else class="table-scroll" role="region" :aria-label="caption" tabindex="0">
     <table class="daily-table">
       <caption class="visually-hidden">{{ caption }}</caption>
       <thead><tr><th scope="col">Date</th><th v-for="column in measurementColumns" :key="column.label" scope="col">{{ column.label }}</th>

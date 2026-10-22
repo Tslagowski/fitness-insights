@@ -82,8 +82,8 @@ test('a phone owner imports a workbook and food CSV together and browses the foo
 
   await page.getByRole('link', { name: 'Nutrition' }).click();
   await expect(page.getByText('3 dates, Sep 1, 2026 – Sep 3, 2026')).toBeVisible();
-  await page.getByRole('button', { name: /Tue, Sep 1, 2026/ }).click();
-  await expect(page.getByRole('region', { name: 'Entries for Sep 1, 2026' })).toContainText('Toast with a long descriptive name');
+  await page.locator('.food-day-toggle', { hasText: 'Tue 1' }).click();
+  await expect(page.getByRole('list', { name: 'Entries for Sep 1, 2026' })).toContainText('Toast with a long descriptive name');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.locator('section', { has: page.getByRole('heading', { name: 'Food log' }) }).screenshot({ path: 'test-results/mobile-food-log.png' });
   await context.close();

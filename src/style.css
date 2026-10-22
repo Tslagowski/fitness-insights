@@ -256,6 +256,26 @@ main:focus { outline: 0; }
 .expenditure-dot { fill: var(--series-expenditure); stroke: var(--chart-surface); stroke-width: 2; }
 .target-line { fill: none; stroke: var(--target-ink); stroke-width: 2; stroke-linejoin: round; }
 .hit { fill: transparent; cursor: pointer; }
+/* Ticket 26: phone-readable data rows */
+.data-rows { margin-top: 10px; }
+.month-heading { font-size: 12px; font-weight: 650; color: #233b37; padding: 14px 2px 6px; position: sticky; top: 0; background: #fffefa; z-index: 1; }
+.row-list { list-style: none; margin: 0; padding: 0; border: 1px solid #e3e8dc; border-radius: 8px; overflow: hidden; }
+.row-list li + li { border-top: 1px solid #eef1e9; }
+.row-list li.is-selected { background: #eef2e7; }
+.row-list li.dimmed .row-primary { color: #8a7a62; }
+.data-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px 12px; width: 100%; padding: 11px 12px; min-height: 48px;
+  background: transparent; border: 0; text-align: left; color: inherit; font-size: 12px; }
+.row-head { display: flex; align-items: baseline; gap: 6px; min-width: 0; flex-wrap: wrap; }
+.row-heading { font-weight: 600; color: #233b37; overflow-wrap: anywhere; }
+.row-primary { font-size: 14px; font-weight: 600; color: #233b37; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.row-secondary { grid-column: 1 / -1; font-size: 11px; color: #62755b; overflow-wrap: anywhere; }
+.row-details { margin: 0; padding: 4px 12px 12px; font-size: 11px; display: grid; gap: 0; }
+.row-details div { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-top: 1px solid #eef1e9; }
+.row-details dt { color: #62755b; }
+.row-details dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.show-more { margin-top: 8px; padding-left: 0; }
+.view-switch { margin-top: 12px; }
+.view-switch button { padding: 8px 14px; min-height: 40px; }
 .service-status { --status-good: #0ca30c; --status-warning: #fab219; --status-critical: #d03b3b; }
 .meters { display: flex; flex-direction: column; gap: 16px; margin-bottom: 12px; }
 .meter-row { display: flex; flex-direction: column; gap: 5px; }
@@ -421,3 +441,5 @@ input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
   .selected-day .calendar-details div { flex-direction: column; gap: 2px; }
   .selected-day dd { text-align: left; }
 }
+.rows-title { font-size: 13px; margin: 6px 0 0; }
+.food-days .month-heading { border: 0; padding: 14px 2px 6px; background: #fffefa; }

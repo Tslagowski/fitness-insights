@@ -4,8 +4,10 @@ import type { ImportedHistory } from '../gateway';
 import { reasonLabels, type Eligibility, type EligibilityReport } from '../analysis/eligibility';
 import type { WindowChoice } from '../analysis/periods';
 import { analyzeTrends, trendsMethodVersion, type Measure, type TrendPeriod } from '../analysis/trends';
-import { formatCalendarDate, plural } from '../import/preview';
+import { formatCalendarDate, formatShortDate, plural } from '../import/preview';
 import WeightActivityCharts from './WeightActivityCharts.vue';
+import DataRows, { type DataRow } from './DataRows.vue';
+import { useNarrow } from './use-narrow';
 
 const props = defineProps<{ history: ImportedHistory; report: EligibilityReport; choice: WindowChoice }>();
 
@@ -53,6 +55,16 @@ const tiles = computed<Tile[]>(() => {
   ];
 });
 const leftOutWeighIns = computed(() => current.value?.days.filter((day) => day.scale !== null && !day.scaleStatus.eligible) ?? []);
+
+const narrow = useNarrow();
+const dateRows = computed<DataRow[]>(() => [...(current.value?.days ?? [])].reverse().map((day) => {
+  const status = statusText(day.scaleStatus, day.scale);
+  return {
+    key: day.date, date: day.date, heading: formatShortDate(day.date), tag: day.scale !== null && status !== 'Counted' ? status : undefined, dimmed: day.scale !== null && !day.scaleStatus.eligible,
+    primary: day.scale === null ? '—' : pounds(day.scale),
+    secondary: `trend ${day.trend === null ? '—' : day.trend.toFixed(1)}${day.estimateWarning && day.trend !== null ? ' †' : ''} · ${day.steps === null ? '—' : steps(day.steps)} steps`,
+  };
+}));
 </script>
 
 <template>
@@ -90,7 +102,8 @@ const leftOutWeighIns = computed(() => current.value?.days.filter((day) => day.s
 
       <details class="preview-section">
         <summary>Weight and steps dates ({{ current.days.length }})</summary>
-        <div class="table-scroll" role="region" aria-label="Weight and steps dates" tabindex="0">
+        <DataRows v-if="narrow" :rows="dateRows" label="Weight and steps dates" :selected="selected" @select="selected = $event" />
+        <div v-else class="table-scroll" role="region" aria-label="Weight and steps dates" tabindex="0">
           <table class="period-table trends-table">
             <caption class="visually-hidden">Every date in {{ range(current) }} with weight and steps</caption>
             <thead><tr><th scope="col">Date</th><th scope="col">Scale (lb)</th><th scope="col">Scale status</th><th scope="col">Trend (lb)</th><th scope="col">Steps</th></tr></thead>

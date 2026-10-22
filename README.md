@@ -239,6 +239,10 @@ Imports & Settings > Backup and restore.
 - **Download backup** produces `fitness-insights-backup-YYYY-MM-DD.zip`: `manifest.json` (format 1, row counts, active and retained revisions, display preferences, and a SHA-256 for every file), one JSON file per table from `export_backup()` (every retained row, including superseded history, import provenance, review decisions, completeness marks, aliases, and saved reports), and the original exports under `archives/`. It contains no credentials, keys, or account ids. If any part cannot be read, no file is offered.
 - **Restore** checks the whole file first (ZIP, format, every checksum, row counts, and each original export against its recorded fingerprint) and the free-tier capacity, then shows current vs backup contents. Only after you confirm does it store the original exports (content-addressed, so existing ones are kept), upload the rows in chunks to private staging (`stage_restore_chunk`), and call `apply_restore`, which re-checks the counts and the revision and replaces everything in one transaction. Display preferences are then saved for the signed-in owner. An interrupted, stale, or failed restore replaces nothing; its staging is discarded (or expires after a day).
 
+## Phone-readable lists (ticket 26)
+
+On phones (below 760px), wide tables become month-grouped rows: a short date ("Wed 21"), one main value, a line of secondary values, and every field on tap. Daily history has an Intake / Weight / Activity switch and loads 30 days at a time. Wide screens keep the full tables.
+
 ## Free-tier limits and recovery (ticket 13)
 
 - **Capacity:** before an import, report save, or restore, the app compares current usage (`capacity_status()`) plus the incoming data with the Supabase Free limits (500 MB database, 1 GB files) and stops at 90%, changing nothing. The database independently refuses any insert of new history once usage passes 95% (`FI507`, statement triggers on every history table), so a wrong browser estimate can never cause an overage or upgrade. Deletes are never blocked, so space can always be recovered.

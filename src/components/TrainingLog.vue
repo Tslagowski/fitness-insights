@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import DataRows, { type DataRow } from './DataRows.vue';
+import { useNarrow } from './use-narrow';
 import { computed, reactive, ref } from 'vue';
 import type { Gateway, ImportedHistory, SavedWorkoutDay } from '../gateway';
 import { formatDuration, groupSessions, supersetBaseName, workoutSourceLabels, type DurationUnit, type WorkoutSet } from '../import/workout';
-import { formatCalendarDate, formatValue, plural } from '../import/preview';
+import { formatCalendarDate, formatShortDate, formatValue, plural } from '../import/preview';
 
 const props = defineProps<{
   gateway: Gateway;
@@ -82,6 +84,22 @@ async function saveAlias(name: string, value: string | null) {
     savingName.value = null;
   }
 }
+
+const narrow = useNarrow();
+const monthOf = (date: string) => { const [year, month] = date.split('-').map(Number); return new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1))); };
+/** On phones, a month heading precedes the first day of each month. */
+const monthStart = (index: number) => narrow.value && (index === 0 || visible.value[index - 1].date.slice(0, 7) !== visible.value[index].date.slice(0, 7));
+const dayLabel = (date: string) => (narrow.value ? formatShortDate(date) : formatCalendarDate(date, { weekday: true }));
+function setRows(sets: WorkoutSet[]): DataRow[] {
+  return sets.map((set, index) => {
+    const reps = number(set, 'Reps');
+    const weight = typeof set['Weight (lb)'] === 'number' ? (set['Weight (lb)'] as number) : null;
+    const primary = weight !== null ? `${formatValue(weight)} lb${weight < 0 ? ' assistance' : ''} × ${reps}` : reps !== '—' ? `${reps} reps` : duration(set);
+    const extras = [`RIR ${number(set, 'RIR')}`, typeof set.Duration === 'number' && primary !== duration(set) ? duration(set) : '',
+      typeof set['Exercise Base Weight (lb)'] === 'number' ? `base ${number(set, 'Exercise Base Weight (lb)')} lb (not added)` : ''].filter(Boolean);
+    return { key: String(index), heading: `Set ${index + 1}`, tag: set['Set Type'] && set['Set Type'] !== 'Standard Set' ? String(set['Set Type']) : undefined, primary, secondary: extras.join(' · ') };
+  });
+}
 </script>
 
 <template>
@@ -96,9 +114,11 @@ async function saveAlias(name: string, value: string | null) {
     </ul>
 
     <ul class="food-days">
-      <li v-for="day in visible" :key="day.date">
+      <template v-for="(day, index) in visible" :key="day.date">
+      <li v-if="monthStart(index)" class="month-heading" aria-hidden="true">{{ monthOf(day.date) }}</li>
+      <li>
         <button type="button" class="food-day-toggle" :aria-expanded="open === day.date" @click="toggle(day.date)">
-          <span class="food-day-date">{{ formatCalendarDate(day.date, { weekday: true }) }}<span v-if="day.date === today" class="row-status">In progress</span></span>
+          <span class="food-day-date">{{ dayLabel(day.date) }}<span v-if="day.date === today" class="row-status">In progress</span></span>
           <span class="food-day-totals">{{ day.workouts.join(' · ') || 'Workout' }}</span>
           <span class="muted">{{ plural(day.sets, 'set') }} · {{ plural(day.exercises, 'exercise') }} · {{ day.durations.map((raw) => formatDuration(raw, durationUnit)).join(' / ') || 'no duration' }} · {{ workoutSourceLabels[day.source] }}</span>
         </button>
@@ -111,7 +131,8 @@ async function saveAlias(name: string, value: string | null) {
               <p class="muted">Duration {{ formatDuration(session.durationRaw, durationUnit) }} ({{ unitLabel }}, unverified; raw {{ session.durationRaw ?? '—' }}) · {{ plural(session.setCount, 'set') }}</p>
               <div v-for="exercise in session.exercises" :key="exercise.name" class="workout-exercise">
                 <h4>{{ displayName(exercise.name) }}<span v-if="displayName(exercise.name) !== exercise.name" class="muted"> · logged as “{{ exercise.name }}”</span></h4>
-                <div class="table-scroll" role="region" :aria-label="`${displayName(exercise.name)} sets`" tabindex="0">
+                <DataRows v-if="narrow" :rows="setRows(exercise.sets)" :label="`${displayName(exercise.name)} sets`" :group-by-month="false" />
+                <div v-else class="table-scroll" role="region" :aria-label="`${displayName(exercise.name)} sets`" tabindex="0">
                   <table class="daily-table">
                     <thead><tr><th scope="col">Set</th><th scope="col" class="food-name">Type</th><th scope="col">Weight (lb)</th><th scope="col">Reps</th><th scope="col">RIR</th><th scope="col">Duration</th><th scope="col">Base weight (lb, not added)</th></tr></thead>
                     <tbody><tr v-for="(set, index) in exercise.sets" :key="index">
@@ -125,6 +146,7 @@ async function saveAlias(name: string, value: string | null) {
           </template>
         </div>
       </li>
+      </template>
     </ul>
     <button v-if="shown < days.length" class="text-button" type="button" @click="shown += pageSize">Show {{ Math.min(pageSize, days.length - shown) }} more days</button>
   </section>

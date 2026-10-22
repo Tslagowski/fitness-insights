@@ -154,3 +154,9 @@ export function describeCounts(counts: { added: number; changed: number; removed
   ].filter(Boolean);
   return parts.length ? parts.join(', ') : 'no record changes';
 }
+
+/** "Mon 19": weekday and day of month, for rows that sit under a month heading. */
+export function formatShortDate(date: string): string {
+  const [year, month, day] = date.split('-').map(Number);
+  return `${new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short' }).format(new Date(Date.UTC(year, month - 1, day)))} ${day}`;
+}
