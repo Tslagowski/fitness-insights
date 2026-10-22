@@ -218,6 +218,17 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 13 | Service/quota failure recovery | Implemented; owner review pending |
 | 14 | Complete mobile and cross-device release verification | Automated checks done; owner verification and two external gates pending |
 | 15 | Record daily energy (owner idea) | Deferred until after the backlog; five levels accepted; comparison scope undecided |
+| 16 | Detect weight phases and plateaus | Ready (issue #1) |
+| 17 | Track expenditure relative to body weight | Ready (issue #2) |
+| 18 | Show day-of-week nutrition and weight patterns | Ready (issue #3) |
+| 19 | Explain over-target days from food detail | Ready (issue #4) |
+| 20 | Track protein relative to body weight | Ready (issue #5) |
+| 21 | Compare strength with body weight during weight change | Ready (issue #6) |
+| 22 | Show muscle-group balance and stalled lifts | Ready (issue #7) |
+| 23 | Track training effort and rep ranges | Ready (issue #8) |
+| 24 | Find what precedes your best and worst sessions | Ready (issue #9) |
+| 25 | Add long-range reviews and dated notes | Ready (issue #10) |
+| 26 | Make data lists readable on phones | Ready (issue #11) |
 
 ## 7. Acceptance criteria
 
