@@ -220,7 +220,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 15 | Record daily energy (owner idea) | Deferred until after the backlog; five levels accepted; comparison scope undecided |
 | 16 | Detect weight phases and plateaus | Implemented; owner review pending (issue #1) |
 | 17 | Track expenditure relative to body weight | Implemented; owner review pending (issue #2) |
-| 18 | Show day-of-week nutrition and weight patterns | Ready (issue #3) |
+| 18 | Show day-of-week nutrition and weight patterns | Implemented; owner review pending (issue #3) |
 | 19 | Explain over-target days from food detail | Ready (issue #4) |
 | 20 | Track protein relative to body weight | Ready (issue #5) |
 | 21 | Compare strength with body weight during weight change | Ready (issue #6) |

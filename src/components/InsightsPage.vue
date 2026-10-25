@@ -6,6 +6,7 @@ import { buildDailySeries } from '../analysis/daily';
 import type { OwnerNote } from '../analysis/notes';
 import PhasesPanel from './PhasesPanel.vue';
 import ExpenditurePanel from './ExpenditurePanel.vue';
+import WeekdayPanel from './WeekdayPanel.vue';
 
 // Long-range analyses over all saved history. Each topic is a pure, versioned calculation over eligible
 // data (ticket 06); nothing here calls an AI service or predicts, prescribes, or explains causes.
@@ -14,6 +15,7 @@ const props = defineProps<{ gateway: Gateway; history: ImportedHistory; report: 
 const topics = [
   { id: 'phases', label: 'Weight phases' },
   { id: 'expenditure', label: 'Expenditure per lb' },
+  { id: 'weekdays', label: 'Day of week' },
 ] as const;
 type Topic = (typeof topics)[number]['id'];
 const topic = ref<Topic>('phases');
@@ -48,4 +50,5 @@ const days = computed(() => buildDailySeries(props.history, props.report, workou
   </section>
   <PhasesPanel v-if="topic === 'phases'" :days="days" :notes="notes" />
   <ExpenditurePanel v-else-if="topic === 'expenditure'" :days="days" />
+  <WeekdayPanel v-else-if="topic === 'weekdays'" :days="days" />
 </template>

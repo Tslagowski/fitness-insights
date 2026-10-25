@@ -33,3 +33,18 @@ test('expenditure per pound on a phone: chart, reference, and month rows', async
   await section.screenshot({ path: 'test-results/mobile-expenditure.png' });
   await context.close();
 });
+
+test('day-of-week patterns on a phone: findings, weekday rows, and scopes', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser);
+  await choose(page, 'Day of week');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Day-of-week patterns' }) });
+  await expect(section.locator('.data-row')).toHaveCount(7);
+  await expect(section.getByRole('list', { name: 'Patterns', exact: true })).toContainText('Saturdays averaged');
+  await section.locator('.data-row').nth(5).click();
+  await expect(section.locator('.row-details')).toContainText('Share of above-target kcal');
+  await section.getByRole('button', { name: 'All history' }).click();
+  await expect(section.getByRole('list', { name: 'Patterns', exact: true })).toContainText('over 24 Saturdays');
+  expect(await fits(page)).toBe(true);
+  await section.screenshot({ path: 'test-results/mobile-weekdays.png' });
+  await context.close();
+});

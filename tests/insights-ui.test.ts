@@ -61,3 +61,20 @@ test('expenditure per pound compares each month with a constant kcal-per-lb refe
   expect(section.find('thead').text()).toContain('Phase');
   expect(section.text()).toContain('Expenditure and steps (association)');
 });
+
+test('day-of-week patterns show per-weekday means, shares, and weekend vs weekdays', async () => {
+  const app = await open(await seededGateway(), 'Day of week');
+  const section = app.find('[aria-labelledby="weekday-heading"]');
+  expect(section.text()).toContain('Method weekday-patterns-v1');
+  expect(section.find('.findings').text()).toMatch(/Saturdays averaged \+[\d,]+ kcal vs target over 12 Saturdays/);
+  const saturday = section.findAll('tbody tr')[5];
+  expect(saturday.text()).toContain('Saturday');
+  expect(saturday.text()).toContain('+1.0 lb');
+  expect(saturday.text()).toContain('4,000');
+  await section.findAll('.segmented button')[0].trigger('click');
+  expect(section.find('.findings').text()).toContain('over 4 Saturdays');
+  expect(section.find('.findings').text()).toContain('Weekend days averaged');
+  await section.findAll('.segmented button')[2].trigger('click');
+  expect(section.find('.findings').text()).toContain('over 24 Saturdays');
+  expect(section.text()).toContain('Weekend vs weekdays');
+});

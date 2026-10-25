@@ -398,6 +398,9 @@ input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
 .category-line.dashed { stroke-dasharray: 5 4; }
 .category-dot { fill: var(--tone); stroke: #fffefa; stroke-width: 2; }
 .period-table tr.dimmed td, .period-table tr.dimmed th { color: #7d8a80; }
+.findings { margin: 10px 0; display: grid; gap: 6px; }
+.findings li { padding: 8px 12px; background: #f3f6ee; border-radius: 6px; font-size: 14px; }
+.subheading { font-size: 15px; margin: 18px 0 6px; }
 .zero-line { stroke: #9aa597; stroke-width: 1; }
 .insight-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 12px 0; }
 .insight-controls select { min-height: 40px; max-width: 100%; }
