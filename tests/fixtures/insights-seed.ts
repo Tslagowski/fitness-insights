@@ -7,7 +7,7 @@ import type { WorkoutDay, WorkoutSet } from '../../src/import/workout';
  * - weeks 1-10 losing 1 lb/week (intake 2,000, expenditure 2,700), weeks 11-18 flat at 240 lb
  *   (intake 2,600, expenditure 2,600), weeks 19-24 gaining 0.5 lb/week (intake 2,900, expenditure 2,650);
  * - Saturdays: scale 1 lb above trend, 4,000 steps, +500 kcal; protein 170 g on weekdays, 140 g on weekends;
- * - food detail for the last 28 days (Saturday pizza at 9:15 PM; one entry without a time; repeated eggs);
+ * - food detail for the last 28 days, when the calorie target is 2,900 (2,200 before) (Saturday pizza at 9:15 PM; one entry without a time; repeated eggs);
  * - Monday/Wednesday/Friday workouts: Bench Press, Back Squat, Cable Row, Assisted Pull-Up, Plank.
  */
 const shift = (date: string, days: number) => { const [y, m, d] = date.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10); };
@@ -37,7 +37,7 @@ export function insightsSeed(end: string): InsightsSeed {
       { date, domain: 'scale_weight', values: { 'Weight (lb)': Number((trend + (saturday ? 1 : -0.2)).toFixed(1)) } },
       { date, domain: 'expenditure', values: { Expenditure: expenditure } },
       { date, domain: 'steps', values: { Steps: saturday ? 4000 : 9000 } },
-      { date, domain: 'targets', values: { 'Target Calories (kcal)': 2200, 'Target Protein (g)': 160, 'Target Fat (g)': 70, 'Target Carbs (g)': 220 } },
+      { date, domain: 'targets', values: { 'Target Calories (kcal)': index >= seedDays - 28 ? 2900 : 2200, 'Target Protein (g)': 160, 'Target Fat (g)': 70, 'Target Carbs (g)': 220 } },
       { date, domain: 'nutrition_totals', values: { 'Calories (kcal)': calories, 'Protein (g)': protein, 'Fat (g)': 70, 'Carbs (g)': saturday ? 320 : 220 } },
     );
     if (index >= seedDays - 28) {

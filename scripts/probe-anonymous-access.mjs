@@ -9,7 +9,7 @@ if (!url || !key) { console.error('Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLI
 const tables = ['preferences', 'source_files', 'data_revisions', 'workspace_state', 'import_batches', 'import_batch_sources', 'daily_records', 'food_days',
   'workout_days', 'exercise_aliases', 'review_decisions', 'completeness_marks', 'reports', 'restore_staging'];
 const functions = {
-  active_history: {}, review_state: {}, active_workout_sets: {}, food_day_entries: { p_date: '2026-09-01' }, workout_day_sets: { p_date: '2026-09-01' },
+  active_history: {}, review_state: {}, active_workout_sets: {}, active_food_entries: {}, food_day_entries: { p_date: '2026-09-01' }, workout_day_sets: { p_date: '2026-09-01' },
   commit_sources: { p_request_id: null, p_expected_revision_id: null, p_sources: [], p_daily: [], p_food: [], p_accept_reconciliation: false, p_dry_run: true, p_workouts: [] },
   clear_day: { p_request_id: '00000000-0000-4000-8000-000000000000', p_expected_revision_id: null, p_date: '2026-09-01', p_domain: 'steps' },
   undo_last_change: { p_request_id: null, p_expected_revision_id: null, p_dry_run: true },

@@ -48,3 +48,17 @@ test('day-of-week patterns on a phone: findings, weekday rows, and scopes', asyn
   await section.screenshot({ path: 'test-results/mobile-weekdays.png' });
   await context.close();
 });
+
+test('over-target days on a phone: class counts, food rows, and time of day', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser);
+  await choose(page, 'Over-target days');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Over-target days' }) });
+  await expect(section.locator('.metric-tile').first()).toContainText('Over target');
+  await expect(section.locator('.data-row').first()).toContainText('Pizza');
+  await section.locator('.data-row').first().click();
+  await expect(section.locator('.row-details')).toContainText('Over − within per day');
+  await expect(section.locator('.category-bar').first()).toBeVisible();
+  expect(await fits(page)).toBe(true);
+  await section.screenshot({ path: 'test-results/mobile-foods.png' });
+  await context.close();
+});

@@ -145,3 +145,19 @@ test('food detail is private to the owner and only writable through the commit',
     expect(history.food_days).toEqual([expect.objectContaining({ date: '2026-09-09', calories: 10, missing_calories: 0, entries: 1, source_kind: 'food_csv' })]);
   });
 });
+
+test('food-level analysis reads every active food day in one owner-only call', async () => {
+  await asOwner(async () => {
+    const days = await call<Array<{ date: string; entries: Entry[] }>>('public.active_food_entries()', []);
+    const active = await activeFood();
+    expect(days.length).toBe(Object.keys(active).length);
+    expect(days.map((item) => item.date)).toEqual([...days.map((item) => item.date)].sort());
+    expect(Object.fromEntries(days.map((item) => [item.date, item.entries]))).toEqual(Object.fromEntries(Object.entries(active).map(([date, value]) => [date, value.entries])));
+  });
+  await asIdentity(database, 'authenticated', strangerId, async () => {
+    expect(await call('public.active_food_entries()', [])).toEqual([]);
+  });
+  await asIdentity(database, 'anon', '', async () => {
+    await expect(call('public.active_food_entries()', [])).rejects.toThrow(/permission denied/);
+  });
+});

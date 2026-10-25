@@ -221,7 +221,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 16 | Detect weight phases and plateaus | Implemented; owner review pending (issue #1) |
 | 17 | Track expenditure relative to body weight | Implemented; owner review pending (issue #2) |
 | 18 | Show day-of-week nutrition and weight patterns | Implemented; owner review pending (issue #3) |
-| 19 | Explain over-target days from food detail | Ready (issue #4) |
+| 19 | Explain over-target days from food detail | Implemented; owner review pending (issue #4) |
 | 20 | Track protein relative to body weight | Ready (issue #5) |
 | 21 | Compare strength with body weight during weight change | Ready (issue #6) |
 | 22 | Show muscle-group balance and stalled lifts | Ready (issue #7) |

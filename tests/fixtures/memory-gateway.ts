@@ -119,6 +119,12 @@ export class MemoryGateway implements Gateway {
       .map((row) => ({ date: row.date, source: row.source, sets: row.sets.map((set) => ({ ...set })), revisionId: row.introduced }));
   }
 
+  async loadFoodHistory(): Promise<SavedFoodDay[]> {
+    if (this.failReads) throw new Error('Network unavailable');
+    return [...this.activeFood].sort((left, right) => left.date.localeCompare(right.date))
+      .map((row) => ({ date: row.date, source: row.source, entries: row.entries.map((entry) => ({ ...entry })), revisionId: row.introduced }));
+  }
+
   async saveReviewDecision(decision: { date: string; domain: 'scale_weight'; field: string; value: number; decision: ReviewChoice }) {
     this.calls.push({ method: 'saveReviewDecision', expectedRevisionId: null });
     if (this.failWrites) throw new Error('Network unavailable');

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import type { Gateway, ImportedHistory, Preferences, SavedWorkoutDay } from '../gateway';
+import type { Gateway, ImportedHistory, Preferences, SavedFoodDay, SavedWorkoutDay } from '../gateway';
 import type { EligibilityReport } from '../analysis/eligibility';
 import { buildDailySeries } from '../analysis/daily';
 import type { OwnerNote } from '../analysis/notes';
 import PhasesPanel from './PhasesPanel.vue';
 import ExpenditurePanel from './ExpenditurePanel.vue';
 import WeekdayPanel from './WeekdayPanel.vue';
+import FoodPatternsPanel from './FoodPatternsPanel.vue';
 
 // Long-range analyses over all saved history. Each topic is a pure, versioned calculation over eligible
 // data (ticket 06); nothing here calls an AI service or predicts, prescribes, or explains causes.
@@ -16,6 +17,7 @@ const topics = [
   { id: 'phases', label: 'Weight phases' },
   { id: 'expenditure', label: 'Expenditure per lb' },
   { id: 'weekdays', label: 'Day of week' },
+  { id: 'foods', label: 'Over-target days' },
 ] as const;
 type Topic = (typeof topics)[number]['id'];
 const topic = ref<Topic>('phases');
@@ -23,6 +25,18 @@ const topic = ref<Topic>('phases');
 const workouts = ref<SavedWorkoutDay[] | null>(null);
 const notes = ref<OwnerNote[]>([]);
 const problem = ref('');
+const foodDays = ref<SavedFoodDay[] | null>(null);
+const foodProblem = ref('');
+let foodRevision: number | null | undefined;
+async function loadFood() {
+  if (foodRevision === props.history.revisionId && foodDays.value) return;
+  foodProblem.value = '';
+  try {
+    foodDays.value = props.history.foodDays.length ? await props.gateway.loadFoodHistory() : [];
+    foodRevision = props.history.revisionId;
+  } catch { foodProblem.value = 'Your food entries could not be loaded. Check your connection and try again; nothing was changed.'; }
+}
+watch([() => topic.value, () => props.history.revisionId], () => { if (topic.value === 'foods') void loadFood(); });
 async function load() {
   problem.value = '';
   try {
@@ -51,4 +65,5 @@ const days = computed(() => buildDailySeries(props.history, props.report, workou
   <PhasesPanel v-if="topic === 'phases'" :days="days" :notes="notes" />
   <ExpenditurePanel v-else-if="topic === 'expenditure'" :days="days" />
   <WeekdayPanel v-else-if="topic === 'weekdays'" :days="days" />
+  <FoodPatternsPanel v-else-if="topic === 'foods'" :days="days" :food-days="foodDays" :problem="foodProblem" />
 </template>

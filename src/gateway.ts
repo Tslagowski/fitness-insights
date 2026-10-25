@@ -42,6 +42,8 @@ export interface Gateway {
   loadWorkoutDay(date: string): Promise<SavedWorkoutDay | null>;
   /** Every active workout day with its sets, oldest first (for exercise analysis). */
   loadWorkoutHistory(): Promise<SavedWorkoutDay[]>;
+  /** Every active food day with its entries, oldest first (for food-level patterns). */
+  loadFoodHistory(): Promise<SavedFoodDay[]>;
   /** Saves a generated report for the active revision; the same fingerprint is saved only once. */
   saveReport(report: WrittenReport, fingerprint: string): Promise<{ id: string; createdAt: string; replayed: boolean }>;
   /** Saved reports, newest first (metadata only). */

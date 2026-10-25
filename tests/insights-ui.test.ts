@@ -78,3 +78,20 @@ test('day-of-week patterns show per-weekday means, shares, and weekend vs weekda
   expect(section.find('.findings').text()).toContain('over 24 Saturdays');
   expect(section.text()).toContain('Weekend vs weekdays');
 });
+
+test('over-target days rank foods and times of day from food detail', async () => {
+  const app = await open(await seededGateway(), 'Over-target days');
+  await flushPromises();
+  const section = app.find('[aria-labelledby="foods-heading"]');
+  expect(section.text()).toContain('Method food-patterns-v1');
+  const tiles = section.findAll('.metric-tile');
+  expect(tiles[0].text()).toContain('Over target');
+  expect(Number(tiles[0].find('.metric-value').text())).toBeGreaterThan(0);
+  expect(section.text()).toMatch(/Not included: [\d,]+ workbook-total days without food detail/);
+  expect(section.find('tbody tr').text()).toContain('Pizza');
+  await section.findAll('.segmented button')[1].trigger('click');
+  expect(section.find('tbody').text()).toContain('Egg');
+  expect(section.text()).toMatch(/\d+% of timed calories at 8 PM or later/);
+  expect(section.text()).toContain('1 entry without a time');
+  expect(section.text()).not.toMatch(/\b(swap|instead|avoid|should)\b/i);
+});

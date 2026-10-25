@@ -107,6 +107,12 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
       return ((data ?? []) as Array<Record<string, unknown>>).map((day) => ({
         date: String(day.date), source: day.source_kind as WorkoutSource, sets: day.sets as WorkoutSet[], revisionId: Number(day.revision_id) }));
     },
+    async loadFoodHistory(): Promise<SavedFoodDay[]> {
+      const { data, error } = await client.rpc('active_food_entries');
+      if (error) throw translateError(error);
+      return ((data ?? []) as Array<Record<string, unknown>>).map((day) => ({
+        date: String(day.date), source: day.source_kind as FoodSource, entries: day.entries as FoodEntry[], revisionId: Number(day.revision_id) }));
+    },
     async saveReport(report, fingerprint) {
       const { data, error } = await client.rpc('save_report', {
         p_fingerprint: fingerprint, p_expected_revision_id: report.inputs.revisionId, p_report_date: report.inputs.reportDate,
