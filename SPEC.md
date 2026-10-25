@@ -218,7 +218,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 13 | Service/quota failure recovery | Implemented; owner review pending |
 | 14 | Complete mobile and cross-device release verification | Automated checks done; owner verification and two external gates pending |
 | 15 | Record daily energy (owner idea) | Deferred until after the backlog; five levels accepted; comparison scope undecided |
-| 16 | Detect weight phases and plateaus | Ready (issue #1) |
+| 16 | Detect weight phases and plateaus | Implemented; owner review pending (issue #1) |
 | 17 | Track expenditure relative to body weight | Ready (issue #2) |
 | 18 | Show day-of-week nutrition and weight patterns | Ready (issue #3) |
 | 19 | Explain over-target days from food detail | Ready (issue #4) |

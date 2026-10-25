@@ -245,6 +245,11 @@ Imports & Settings > Backup and restore.
 
 On phones (below 760px), wide tables become month-grouped rows: a short date ("Wed 21"), one main value, a line of secondary values, and every field on tap. Daily history has an Intake / Weight / Activity switch and loads 30 days at a time. Wide screens keep the full tables.
 
+## Insights page (tickets 16-25)
+
+The Insights page holds long-range analyses over all saved history. Each is a pure, versioned calculation over eligible data (ticket 06) with its counts, dates, method version, and exclusions shown; none calls an AI service, forecasts, prescribes, or claims causes.
+- **Weight phases (ticket 16, `weight-phases-v1`):** history split into Losing, Slowing, Maintaining (plateau), and Gaining phases from a 14-day rolling rate of MacroFactor's trend weight, with each phase's intake, balance, target difference, steps, protein, and weekly sets behind coverage gates.
+
 ## Free-tier limits and recovery (ticket 13)
 
 - **Capacity:** before an import, report save, or restore, the app compares current usage (`capacity_status()`) plus the incoming data with the Supabase Free limits (500 MB database, 1 GB files) and stops at 90%, changing nothing. The database independently refuses any insert of new history once usage passes 95% (`FI507`, statement triggers on every history table), so a wrong browser estimate can never cause an overage or upgrade. Deletes are never blocked, so space can always be recovered.

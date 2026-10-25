@@ -160,3 +160,6 @@ export function formatShortDate(date: string): string {
   const [year, month, day] = date.split('-').map(Number);
   return `${new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short' }).format(new Date(Date.UTC(year, month - 1, day)))} ${day}`;
 }
+
+/** "May 18": a calendar date without the year, for compact date ranges. */
+export const monthDay = (date: string) => formatCalendarDate(date).replace(/, \d{4}$/, '');

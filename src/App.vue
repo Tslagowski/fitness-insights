@@ -19,6 +19,7 @@ import ReportHistory from './components/ReportHistory.vue';
 import RetentionPanel from './components/RetentionPanel.vue';
 import BackupPanel from './components/BackupPanel.vue';
 import ServiceStatus from './components/ServiceStatus.vue';
+import InsightsPage from './components/InsightsPage.vue';
 import type { WrittenReport } from './analysis/report';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
@@ -27,7 +28,8 @@ const pages = [
   { id: 'overview', title: 'Overview', short: 'Overview', number: '01' },
   { id: 'nutrition', title: 'Nutrition & Weight', short: 'Nutrition', number: '02' },
   { id: 'training', title: 'Training', short: 'Training', number: '03' },
-  { id: 'settings', title: 'Imports & Settings', short: 'Settings', number: '04' },
+  { id: 'insights', title: 'Insights', short: 'Insights', number: '04' },
+  { id: 'settings', title: 'Imports & Settings', short: 'Settings', number: '05' },
 ];
 const page = ref('overview');
 const title = computed(() => pages.find((item) => item.id === page.value)?.title ?? 'Overview');
@@ -264,6 +266,9 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <ReviewQueue :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
             <CompletenessPanel :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
             <ReportHistory :gateway="gateway" :history="history" :current="currentReport" :complete="reportComplete" />
+          </template>
+          <template v-else-if="page === 'insights' && gateway && historyState === 'ready' && hasHistory">
+            <InsightsPage :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
           </template>
           <template v-else-if="page === 'training' && gateway && history.workoutDays.length">
             <ExerciseProgress :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
