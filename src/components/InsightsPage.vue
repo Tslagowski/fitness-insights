@@ -8,6 +8,7 @@ import PhasesPanel from './PhasesPanel.vue';
 import ExpenditurePanel from './ExpenditurePanel.vue';
 import WeekdayPanel from './WeekdayPanel.vue';
 import FoodPatternsPanel from './FoodPatternsPanel.vue';
+import ProteinPanel from './ProteinPanel.vue';
 
 // Long-range analyses over all saved history. Each topic is a pure, versioned calculation over eligible
 // data (ticket 06); nothing here calls an AI service or predicts, prescribes, or explains causes.
@@ -18,6 +19,7 @@ const topics = [
   { id: 'expenditure', label: 'Expenditure per lb' },
   { id: 'weekdays', label: 'Day of week' },
   { id: 'foods', label: 'Over-target days' },
+  { id: 'protein', label: 'Protein per lb' },
 ] as const;
 type Topic = (typeof topics)[number]['id'];
 const topic = ref<Topic>('phases');
@@ -66,4 +68,5 @@ const days = computed(() => buildDailySeries(props.history, props.report, workou
   <ExpenditurePanel v-else-if="topic === 'expenditure'" :days="days" />
   <WeekdayPanel v-else-if="topic === 'weekdays'" :days="days" />
   <FoodPatternsPanel v-else-if="topic === 'foods'" :days="days" :food-days="foodDays" :problem="foodProblem" />
+  <ProteinPanel v-else-if="topic === 'protein'" :days="days" />
 </template>

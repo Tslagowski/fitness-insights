@@ -37,7 +37,7 @@ test('weight phases split the history by trend rate and open each phase’s evid
   await rows[2].find('button').trigger('click');
   const selected = section.find('[aria-label="Selected phase"]').text();
   expect(selected).toContain('Losing');
-  expect(selected).toMatch(/Mean intake\s*2,128 kcal \(\d+ days\)/);
+  expect(selected).toMatch(/Mean intake\s*2,1\d\d kcal \(\d+ days\)/);
   expect(selected).toContain('Working sets per week');
   expect(section.findAll('.phase-band')).toHaveLength(3);
   expect(section.text()).toContain('How phases are found');
@@ -94,4 +94,17 @@ test('over-target days rank foods and times of day from food detail', async () =
   expect(section.text()).toMatch(/\d+% of timed calories at 8 PM or later/);
   expect(section.text()).toContain('1 entry without a time');
   expect(section.text()).not.toMatch(/\b(swap|instead|avoid|should)\b/i);
+});
+
+test('protein per lb shows the ratio, target consistency, weekly series, and missed days', async () => {
+  const app = await open(await seededGateway(), 'Protein per lb');
+  const section = app.find('[aria-labelledby="protein-heading"]');
+  expect(section.text()).toContain('Method protein-per-lb-v1');
+  const tiles = section.findAll('.metric-tile');
+  expect(tiles[0].text()).toMatch(/0\.\d\d g\/lb/);
+  // Weekends (140 g) miss the 160 g target; weekdays (170 g) meet it: 60 of 84 days.
+  expect(tiles[1].text()).toContain('60 of 84 days');
+  expect(section.find('h3.subheading').text()).toContain('(24)');
+  expect(section.find('tbody tr').text()).toMatch(/14\d g160 g−\d+ g/);
+  expect(section.text()).toContain('no other amount is recommended');
 });

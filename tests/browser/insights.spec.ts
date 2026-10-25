@@ -62,3 +62,16 @@ test('over-target days on a phone: class counts, food rows, and time of day', as
   await section.screenshot({ path: 'test-results/mobile-foods.png' });
   await context.close();
 });
+
+test('protein per lb on a phone: tiles, weekly chart, and missed-day rows', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser);
+  await choose(page, 'Protein per lb');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Protein per pound' }) });
+  await expect(section.locator('.metric-tile').nth(1)).toContainText('60 of 84 days');
+  await expect(section.locator('.category-line')).toHaveCount(1);
+  await expect(section.locator('.data-row')).toHaveCount(20);
+  await expect(section.locator('.data-row').first()).toContainText('of 160 g');
+  expect(await fits(page)).toBe(true);
+  await section.screenshot({ path: 'test-results/mobile-protein.png' });
+  await context.close();
+});

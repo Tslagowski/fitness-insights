@@ -252,6 +252,7 @@ The Insights page holds long-range analyses over all saved history. Each is a pu
 - **Expenditure per pound (ticket 17, `expenditure-per-lb-v1`):** monthly or per-phase mean expenditure, trend weight, and kcal per lb from matched days, compared with what a constant reference ratio would imply, plus an expenditure-versus-steps association.
 - **Day-of-week patterns (ticket 18, `weekday-patterns-v1`):** per-weekday intake, target difference, balance, steps, and scale-minus-trend residual, each weekday's share of above-target calories and gross surplus, and weekend vs weekdays, over the last 4 or 12 weeks or all history.
 - **Over-target days (ticket 19, `food-patterns-v1`):** food-detail days classed over, within, or under target (±100 kcal), foods ranked by total and by over-minus-within calories per day, and calories by logged time with the share after 8 PM; workbook-total days are excluded and counted.
+- **Protein per pound (ticket 20, `protein-per-lb-v1`):** protein in grams per lb of trend weight (food detail when present, otherwise the workbook total), its distribution and weekly series, how often your own MacroFactor protein target was met, and every missed day.
 
 ## Free-tier limits and recovery (ticket 13)
 

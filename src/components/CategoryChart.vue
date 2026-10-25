@@ -45,6 +45,14 @@ const lines = computed(() => (props.kind !== 'line' || !scale.value ? [] : props
   return { ...item, path, dots: item.values.flatMap((value, index) => (value === null ? [] : [{ index, cx: x(index), cy: scale.value!.y(value) }])) };
 })));
 const labelEvery = computed(() => Math.max(1, Math.ceil(count.value / Math.max(Math.floor((width.value - margin.left) / 44), 1))));
+/** Axis labels precise enough that neighboring ticks never read the same. */
+function tickLabel(tick: number, step: number): string {
+  if (step < 1) {
+    const decimals = Math.min(3, (String(Number(step.toPrecision(6))).split('.')[1] ?? '').length);
+    return `${tick < 0 ? '−' : ''}${Math.abs(tick).toFixed(decimals)}`;
+  }
+  return step < 100 && Math.abs(tick) >= 1000 ? Math.round(tick).toLocaleString('en-US') : compact(tick);
+}
 function onKey(event: KeyboardEvent) {
   const current = props.selected ?? count.value - 1;
   const next = event.key === 'ArrowLeft' ? current - 1 : event.key === 'ArrowRight' ? current + 1 : null;
@@ -64,7 +72,7 @@ function onKey(event: KeyboardEvent) {
     <svg v-else :width="width" :height="height" role="group" tabindex="0" :aria-label="`${title}. Use the left and right arrow keys to choose a column; its values appear in the table.`" @keydown="onKey">
       <g class="grid">
         <g v-for="tick in scale.ticks" :key="tick"><line :x1="margin.left" :x2="width - margin.right" :y1="scale.y(tick)" :y2="scale.y(tick)" />
-          <text :x="margin.left - 6" :y="scale.y(tick) + 3" text-anchor="end">{{ scale.step < 100 && Math.abs(tick) >= 1000 ? Math.round(tick).toLocaleString('en-US') : compact(tick) }}</text></g>
+          <text :x="margin.left - 6" :y="scale.y(tick) + 3" text-anchor="end">{{ tickLabel(tick, scale.step) }}</text></g>
       </g>
       <rect v-if="selected !== null && selected >= 0" class="crosshair" :x="margin.left + selected * band" :y="margin.top" :width="band" :height="plotHeight" />
       <line v-if="zero" class="zero-line" :x1="margin.left" :x2="width - margin.right" :y1="scale.base" :y2="scale.base" />
