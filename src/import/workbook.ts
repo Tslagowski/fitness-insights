@@ -1,6 +1,7 @@
 import { readSpreadsheet, SpreadsheetReadError, type SpreadsheetCell, type SpreadsheetSheet } from './xlsx';
 import { hasFoodHeaders, parseFoodRows, type FoodCell, type ParsedFood } from './food';
 import { hasWorkoutHeaders, parseWorkoutRows, type ParsedWorkouts } from './workout';
+import { FullExportError, isFullExport, parseFullExport } from './full-export';
 
 /**
  * MacroFactor workbook import (ticket 02): daily measurements, expenditure, targets,
@@ -48,7 +49,7 @@ export interface ImportFinding {
   problem: string;
 }
 
-export type SheetDisposition = 'imported' | 'food-detail' | 'workout-detail' | 'archived' | 'unrecognized';
+export type SheetDisposition = 'imported' | 'food-detail' | 'workout-detail' | 'archived' | 'private' | 'unrecognized';
 
 export interface SheetSummary {
   name: string;
@@ -66,7 +67,15 @@ export interface DomainCoverage {
 }
 
 export interface WorkbookImport {
+  /** Quick export (one daily sheet) or the full data export (one sheet per measure, ticket 27). */
+  format: 'quick' | 'full';
   dailySheet: string;
+  /** Full export: which sheet supplied each kind of value. */
+  sources?: Array<{ sheet: string; role: string }>;
+  /** Full export: how daily targets were derived from the program history. */
+  targets?: { version: string; updates: number; firstUpdate: string | null; daysDerived: number } | null;
+  /** Full export: days flagged as partial logging in MacroFactor, offered as incomplete-day suggestions. */
+  partialLoggingDates?: string[];
   dates: string[];
   records: DailyRecord[];
   coverage: DomainCoverage[];
@@ -94,6 +103,7 @@ export function parseWorkbook(bytes: Uint8Array): WorkbookImport {
   }
 
   const dailyCandidates = sheets.filter((sheet) => hasHeaders(sheet, requiredDailyHeaders));
+  if (dailyCandidates.length === 0 && isFullExport(sheets)) return fullExportImport(sheets);
   if (dailyCandidates.length === 0) {
     const closest = sheets.find((sheet) => headerRow(sheet).includes('Date') && headerRow(sheet).includes('Expenditure'));
     if (closest) {
@@ -165,6 +175,7 @@ export function parseWorkbook(bytes: Uint8Array): WorkbookImport {
   });
 
   return {
+    format: 'quick',
     dailySheet: dailySheet.name,
     dates,
     records: records.sort((left, right) => left.date.localeCompare(right.date) || dailyDomains.indexOf(left.domain) - dailyDomains.indexOf(right.domain)),
@@ -172,6 +183,35 @@ export function parseWorkbook(bytes: Uint8Array): WorkbookImport {
     findings,
     sheets: sheets.map((sheet) => ({ name: sheet.name, disposition: dispositionOf(sheet, dailySheet), dataRows: dataRowCount(sheet) })),
     ignoredColumns,
+    foodLog: readFoodLog(sheets),
+    workoutLog: readWorkoutLog(sheets),
+  };
+}
+
+function fullExportImport(sheets: SpreadsheetSheet[]): WorkbookImport {
+  let result: ReturnType<typeof parseFullExport>;
+  try { result = parseFullExport(sheets); } catch (error) {
+    throw new WorkbookImportError(error instanceof FullExportError ? error.message : 'This full data export could not be read. Nothing was changed.');
+  }
+  const dates = [...new Set(result.records.map((record) => record.date))].sort();
+  const coverage = dailyDomains.flatMap((domain): DomainCoverage[] => {
+    const domainRecords = result.records.filter((record) => record.domain === domain);
+    if (!domainRecords.length) return [];
+    return [{ domain, firstDate: domainRecords[0].date, lastDate: domainRecords.at(-1)!.date, dates: domainRecords.length,
+      datesWithValues: domainRecords.filter((record) => Object.values(record.values).some((value) => value !== null)).length }];
+  });
+  return {
+    format: 'full',
+    dailySheet: result.sources.map((source) => source.sheet).join(', '),
+    sources: result.sources,
+    targets: result.targets,
+    partialLoggingDates: result.partialLoggingDates,
+    dates,
+    records: result.records,
+    coverage,
+    findings: result.findings,
+    sheets: sheets.map((sheet) => ({ name: sheet.name, disposition: result.dispositions.get(sheet) ?? 'archived', dataRows: dataRowCount(sheet) })),
+    ignoredColumns: [],
     foodLog: readFoodLog(sheets),
     workoutLog: readWorkoutLog(sheets),
   };

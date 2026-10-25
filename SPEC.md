@@ -229,7 +229,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 24 | Find what precedes your best and worst sessions | Ready (issue #9) |
 | 25 | Add long-range reviews and dated notes | Ready (issue #10) |
 | 26 | Make data lists readable on phones | Implemented; owner review pending (issue #11) |
-| 27 | Import the full MacroFactor data export | Ready (issue #12) |
+| 27 | Import the full MacroFactor data export | Implemented; owner import pending (issue #12) |
 
 ## 7. Acceptance criteria
 

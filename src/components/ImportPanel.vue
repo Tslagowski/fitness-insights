@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { incompleteDates } from '../analysis/eligibility';
 import { computed, ref, watch } from 'vue';
 import {
   ReconciliationRequiredError, StaleRevisionError, CapacityError, type Gateway, type ImportedHistory, type SourceFile, type SourcesPreview, type SourcesResult,
@@ -72,6 +73,10 @@ const workoutSummary = computed(() => {
   };
 });
 const findingCount = computed(() => (preview.value?.plan.daily?.findings.length ?? 0) + (preview.value?.plan.food?.findings.length ?? 0) + (preview.value?.plan.workouts?.findings.length ?? 0));
+const acceptPartial = ref(false);
+const alreadyIncomplete = computed(() => new Set(incompleteDates(props.history.review.completeness)));
+/** Partial Logging days not already marked incomplete. */
+const partialDates = computed(() => (preview.value?.plan.daily?.partialLoggingDates ?? []).filter((date) => !alreadyIncomplete.value.has(date)));
 const needsAcceptance = computed(() => (preview.value?.server.conflicts.length ?? 0) > 0);
 
 const kindLabels: Record<SourceKind, string> = { workbook: 'Workbook (.xlsx)', food_csv: 'Food CSV', workout_csv: 'Workout CSV' };
@@ -80,6 +85,7 @@ const dispositionText: Record<SheetDisposition, string> = {
   'food-detail': 'Food entries: used for dates without a food CSV',
   'workout-detail': 'Workout sets: used for dates without a workout CSV',
   archived: 'Archived with the raw file; not analyzed',
+  private: 'Personal profile or settings: kept only in the private archive, never read',
   unrecognized: 'Unrecognized; archived with the raw file only',
 };
 
@@ -141,6 +147,8 @@ async function confirm() {
     const tooBig = capacityProblem(status, { databaseBytes: incomingRows * 3, archiveBytes: current.sources.reduce((sum, source) => sum + source.byteSize, 0) });
     if (tooBig) { phase.value = 'preview'; problem.value = tooBig; return; }
   } catch { /* the commit below reports any real failure */ }
+  // Captured now: the preview (and its suggestions) is cleared once the import succeeds.
+  const marks = acceptPartial.value ? [...partialDates.value] : [];
   try {
     const result = await props.gateway.commitSources({
       requestId: current.requestId, expectedRevisionId: current.baseRevisionId, sources: current.sources,
@@ -149,6 +157,14 @@ async function confirm() {
     preview.value = null;
     phase.value = 'idle';
     outcome.value = describeResult(result);
+    acceptPartial.value = false;
+    if (marks.length) {
+      let failed = 0;
+      for (const date of marks) {
+        try { await props.gateway.saveCompleteness({ date, domain: 'nutrition', status: 'incomplete' }); } catch { failed += 1; }
+      }
+      outcome.value += failed ? ` ${plural(failed, 'Partial Logging day')} could not be marked incomplete; mark ${failed === 1 ? 'it' : 'them'} in Overview.` : ` Marked ${plural(marks.length, 'Partial Logging day')} as incomplete.`;
+    }
     if (!(await props.reloadHistory())) outcome.value += ' Refresh the page to see the updated history.';
   } catch (error) {
     phase.value = 'preview';
@@ -264,6 +280,21 @@ function chooseFiles() { fileInput.value?.click(); }
           Sets are kept exactly as logged, in order, including identical repeats. Loads stay as logged (dumbbells per hand), reps as logged (per side for one-sided movements), assistance stays negative, and machine base weight is never added.</p>
         <p v-if="preview.plan.workouts.overriddenWorkbookDates.length" class="muted">The workout CSV replaces the workbook Workout Log on {{ plural(preview.plan.workouts.overriddenWorkbookDates.length, 'date') }} it covers.</p>
         <p v-if="preview.server.changedWorkoutDates.length" class="muted">Replaced workout days: {{ preview.server.changedWorkoutDates.slice(0, 10).map((date) => formatCalendarDate(date)).join(', ') }}<template v-if="preview.server.changedWorkoutDates.length > 10"> and {{ preview.server.changedWorkoutDates.length - 10 }} more</template>.</p>
+      </details>
+
+      <details v-if="preview.plan.daily?.format === 'full'" class="preview-section full-export" open>
+        <summary>MacroFactor full data export</summary>
+        <p class="field-help">This export keeps each measure on its own sheet. They are combined into the same daily records as the quick export; a measure is only updated on dates its own sheet lists.</p>
+        <ul class="plain-list" aria-label="Sheets used">
+          <li v-for="source in preview.plan.daily.sources ?? []" :key="source.sheet"><strong>{{ source.sheet }}</strong><span>{{ source.role.replace('_', ' ') }}</span></li>
+        </ul>
+        <p v-if="preview.plan.daily.targets" class="muted">Targets: {{ plural(preview.plan.daily.targets.daysDerived, 'day') }} derived from {{ plural(preview.plan.daily.targets.updates, 'program update') }}<template v-if="preview.plan.daily.targets.firstUpdate"> (first {{ formatCalendarDate(preview.plan.daily.targets.firstUpdate) }})</template>: each day uses the latest update on or before it and that update's value for the day's weekday ({{ preview.plan.daily.targets.version }}). Days before the first update have no target.</p>
+        <p v-else class="muted">No nutrition program history was found, so no targets are imported from this file.</p>
+        <p class="muted">Food entries and workout sets are not in this export; import the food and workout CSVs for that detail. Micronutrients, body measurements, fasting, and MacroFactor's exercise summaries are archived with the file for later use.</p>
+        <div v-if="partialDates.length" class="partial-logging" role="group" aria-label="Partial logging days">
+          <label class="check-label"><input v-model="acceptPartial" type="checkbox" /> Also mark the {{ plural(partialDates.length, 'day') }} you flagged as Partial Logging in MacroFactor as incomplete nutrition days</label>
+          <p class="muted">{{ partialDates.map((date) => formatCalendarDate(date)).join(', ') }}. Their intake is then left out of nutrition calculations (nothing is deleted); you can mark them complete again in Overview.</p>
+        </div>
       </details>
 
       <details v-if="preview.plan.daily" class="preview-section">

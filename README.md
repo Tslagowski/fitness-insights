@@ -126,6 +126,8 @@ In Imports & Settings, choose a MacroFactor `.xlsx` export. The app reads it in 
 - rejects a preview prepared against an older revision (for example after another device imported), so the app refreshes the preview instead of overwriting;
 - returns the original result when a request is retried, so a lost response cannot create a duplicate.
 
+The full data export (one sheet per measure) is also accepted (ticket 27): its weight, trend, expenditure, nutrition, and steps sheets become the same daily records, daily targets are derived from the nutrition program history (latest update on or before each day, by weekday), and days you flagged as Partial Logging can be marked incomplete in the preview. Profile and settings sheets are kept only in the private archive and never read; the full export has no food entries or workout sets, so import the CSVs for those.
+
 Blank cells stay missing, never zero. Workbook nutrition totals are provisional until detailed food imports (ticket 04). Food Log and Workout Log sheets are reported but not imported yet; muscle-group and program sheets are archived with the raw file only.
 
 ## Database changes

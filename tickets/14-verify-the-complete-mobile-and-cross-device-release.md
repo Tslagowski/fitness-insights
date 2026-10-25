@@ -43,5 +43,5 @@ The four views, mobile upload and review, signed-in cross-device refresh, correc
 
 ### External release gates (open)
 
-1. A corrected full-history workbook, checked without inventing missing history; the known 297.8 lb weigh-in must be corrected or explicitly excluded.
+1. A corrected full-history workbook, checked without inventing missing history; the known 297.8 lb weigh-in must be corrected or explicitly excluded. Update 2026-10-24: the owner's Oct 22 full data export parses locally (555 dates, no findings) and contains no weigh-in above 280 lb after July 2025, so the error is absent; the remaining step is importing it on the hosted app (ticket 27).
 2. One workout's duration compared with MacroFactor's display (for example 2912 should show 48 min 32 s if the values are seconds); the unit stays configurable and raw values are kept.
