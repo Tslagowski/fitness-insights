@@ -249,6 +249,7 @@ On phones (below 760px), wide tables become month-grouped rows: a short date ("W
 
 The Insights page holds long-range analyses over all saved history. Each is a pure, versioned calculation over eligible data (ticket 06) with its counts, dates, method version, and exclusions shown; none calls an AI service, forecasts, prescribes, or claims causes.
 - **Weight phases (ticket 16, `weight-phases-v1`):** history split into Losing, Slowing, Maintaining (plateau), and Gaining phases from a 14-day rolling rate of MacroFactor's trend weight, with each phase's intake, balance, target difference, steps, protein, and weekly sets behind coverage gates.
+- **Expenditure per pound (ticket 17, `expenditure-per-lb-v1`):** monthly or per-phase mean expenditure, trend weight, and kcal per lb from matched days, compared with what a constant reference ratio would imply, plus an expenditure-versus-steps association.
 
 ## Free-tier limits and recovery (ticket 13)
 

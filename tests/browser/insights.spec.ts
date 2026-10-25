@@ -19,3 +19,17 @@ test('weight phases on a phone: timeline, phase rows, and evidence', async ({ br
   await section.screenshot({ path: 'test-results/mobile-phases.png' });
   await context.close();
 });
+
+test('expenditure per pound on a phone: chart, reference, and month rows', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser);
+  await choose(page, 'Expenditure per lb');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Expenditure per pound' }) });
+  await expect(section.locator('.category-line')).toHaveCount(2);
+  await expect(section.locator('.data-row').first()).toContainText(/kcal\/lb|days/);
+  await expect(section.getByText('Reference', { exact: true }).first()).toBeVisible();
+  await section.getByRole('button', { name: 'Phases' }).click();
+  await expect(section.locator('.data-row')).toHaveCount(3);
+  expect(await fits(page)).toBe(true);
+  await section.screenshot({ path: 'test-results/mobile-expenditure.png' });
+  await context.close();
+});

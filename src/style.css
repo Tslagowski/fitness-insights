@@ -389,6 +389,19 @@ input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
 .chart-tooltip { font-size: 12px; color: #55625a; margin-top: 4px; }
 .insight-card .period-table td, .insight-card .period-table th { white-space: nowrap; }
 
+.tone-blue { --tone: #2a78d6; } .tone-orange { --tone: #eb6834; } .tone-green { --tone: #008300; } .tone-teal { --tone: #1baf7a; }
+.tone-violet { --tone: #6250d6; } .tone-red { --tone: #e34948; } .tone-gray { --tone: #8a9389; }
+.key[class*='tone-'] { background: var(--tone); }
+.key.key-line.dashed { background: repeating-linear-gradient(90deg, var(--tone) 0 4px, transparent 4px 7px); }
+.category-bar { fill: var(--tone); }
+.category-line { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.category-line.dashed { stroke-dasharray: 5 4; }
+.category-dot { fill: var(--tone); stroke: #fffefa; stroke-width: 2; }
+.period-table tr.dimmed td, .period-table tr.dimmed th { color: #7d8a80; }
+.zero-line { stroke: #9aa597; stroke-width: 1; }
+.insight-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 12px 0; }
+.insight-controls select { min-height: 40px; max-width: 100%; }
+
 @media (min-width: 1600px) {
   main { padding-top: 58px; }
   .welcome-content { padding: 55px; }

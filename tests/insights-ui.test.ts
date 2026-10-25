@@ -42,3 +42,22 @@ test('weight phases split the history by trend rate and open each phase’s evid
   expect(section.findAll('.phase-band')).toHaveLength(3);
   expect(section.text()).toContain('How phases are found');
 });
+
+test('expenditure per pound compares each month with a constant kcal-per-lb reference', async () => {
+  const app = await open(await seededGateway(), 'Expenditure per lb');
+  const section = app.find('[aria-labelledby="expenditure-heading"]');
+  expect(section.text()).toContain('Method expenditure-per-lb-v1');
+  expect(section.text()).toContain('not a measured metabolic rate');
+  const rows = section.findAll('tbody tr');
+  expect(rows.length).toBeGreaterThanOrEqual(6);
+  expect(section.find('tbody').text()).toContain('(reference)');
+  expect(section.find('tbody').text()).toMatch(/1[01]\.\d\d kcal\/lb/);
+  const select = section.find('#expenditure-reference');
+  const options = select.findAll('option');
+  await select.setValue(options.at(-1)!.element.value);
+  expect(rows.length).toBeGreaterThan(0);
+  expect(section.find('tbody tr').text()).toContain('(reference)');
+  await section.findAll('.segmented button')[1].trigger('click');
+  expect(section.find('thead').text()).toContain('Phase');
+  expect(section.text()).toContain('Expenditure and steps (association)');
+});
