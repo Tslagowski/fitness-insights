@@ -109,3 +109,19 @@ test('muscle balance on a phone: ratios, muscle rows, stalled lifts, and the map
   await section.screenshot({ path: 'test-results/mobile-muscles.png' });
   await context.close();
 });
+
+test('training effort on a phone: tiles, distributions, and exercise rows', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser);
+  await choose(page, 'Effort and reps');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Training effort' }) });
+  await expect(section.locator('.metric-tile').first()).toContainText('80%');
+  await expect(section.locator('.category-bar').first()).toBeVisible();
+  await expect(section.locator('.data-row')).toHaveCount(5);
+  await section.locator('.data-row', { hasText: 'Bench Press' }).click();
+  await expect(section.locator('.row-details')).toContainText('RIR 1-2');
+  await section.getByRole('button', { name: '4 weeks' }).click();
+  await expect(section.locator('.metric-tile').nth(2)).toContainText('6');
+  expect(await fits(page)).toBe(true);
+  await section.screenshot({ path: 'test-results/mobile-effort.png' });
+  await context.close();
+});

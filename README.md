@@ -255,6 +255,7 @@ The Insights page holds long-range analyses over all saved history. Each is a pu
 - **Protein per pound (ticket 20, `protein-per-lb-v1`):** protein in grams per lb of trend weight (food detail when present, otherwise the workbook total), its distribution and weekly series, how often your own MacroFactor protein target was met, and every missed day.
 - **Strength vs body weight (ticket 21, `strength-bodyweight-v1`):** for each positive-load lift, the best-session estimated-strength score, trend weight on the session date, and score per lb, with Gained/Kept/Lost over all history, the latest 12 weeks, or a weight phase; assisted, bodyweight, and timed movements are listed, not scored.
 - **Muscle balance (ticket 22, `muscle-balance-v1`):** weekly working sets per muscle from your own exercise-to-muscle mapping (MacroFactor's muscle sheet does not export the mapping behind its fractional totals, so it cannot be checked set by set), push/pull and upper/lower ratios, unmapped exercises listed, and lifts whose progress label was Stable or Declining in each of the last N comparisons (N and secondary-muscle credit are settings). The mapping is backed up; older backups restore it empty.
+- **Training effort (ticket 23, `effort-v1`):** working sets by rep range (1-5, 6-10, 11-15, 16+, timed) and logged RIR (0, 1-2, 3-4, 5+, not recorded) per week and per exercise, failure sets as logged, and the weekly share of sets at RIR 0-2 charted only for weeks where at least 75% of sets have an RIR.
 
 ## Free-tier limits and recovery (ticket 13)
 

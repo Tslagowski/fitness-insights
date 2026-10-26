@@ -162,3 +162,19 @@ test('muscle balance maps exercises, credits sets, shows ratios, and lists stall
   expect(section.find('[role="alert"]').text()).toContain('Cable Row was not saved');
   expect((section.find('#muscle-cable-row').element as HTMLSelectElement).value).toBe('Upper Back');
 });
+
+test('training effort shows rep ranges, RIR groups, coverage, and per-exercise counts', async () => {
+  const app = await open(await seededGateway(), 'Effort and reps');
+  await flushPromises();
+  const section = app.find('[aria-labelledby="effort-heading"]');
+  expect(section.text()).toContain('Method effort-v1');
+  const tiles = section.findAll('.metric-tile');
+  // Per session: 7 working sets, 5 with RIR (Bench 2 and 1, Squat 3, Row 0, Assisted 2): 4 of 5 at RIR 0-2.
+  expect(tiles[0].text()).toContain('80%');
+  expect(tiles[1].text()).toContain('71%');
+  expect(tiles[2].find('.metric-value').text()).toBe('18');
+  const bench = section.findAll('tbody tr').find((row) => row.find('th').text() === 'Bench Press')!;
+  expect(bench.text()).toContain('100%');
+  expect(section.findAll('tbody tr').find((row) => row.find('th').text() === 'Plank')!.text()).toContain('0%');
+  expect(section.text()).not.toMatch(/\b(should|recommend|optimal)\b/i);
+});

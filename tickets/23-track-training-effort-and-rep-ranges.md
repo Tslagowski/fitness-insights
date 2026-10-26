@@ -1,6 +1,6 @@
 # 23: Track training effort and rep ranges
 
-**Status:** ready-for-agent
+**Status:** in-progress (implemented 2026-10-26; owner review pending)
 
 **GitHub issue:** [#8](https://github.com/Tslagowski/fitness-insights/issues/8)
 
