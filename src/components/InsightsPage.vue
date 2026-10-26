@@ -9,6 +9,8 @@ import ExpenditurePanel from './ExpenditurePanel.vue';
 import WeekdayPanel from './WeekdayPanel.vue';
 import FoodPatternsPanel from './FoodPatternsPanel.vue';
 import ProteinPanel from './ProteinPanel.vue';
+import StrengthPanel from './StrengthPanel.vue';
+import { analyzeExercises } from '../analysis/exercise';
 
 // Long-range analyses over all saved history. Each topic is a pure, versioned calculation over eligible
 // data (ticket 06); nothing here calls an AI service or predicts, prescribes, or explains causes.
@@ -20,6 +22,7 @@ const topics = [
   { id: 'weekdays', label: 'Day of week' },
   { id: 'foods', label: 'Over-target days' },
   { id: 'protein', label: 'Protein per lb' },
+  { id: 'strength', label: 'Strength vs weight' },
 ] as const;
 type Topic = (typeof topics)[number]['id'];
 const topic = ref<Topic>('phases');
@@ -52,6 +55,8 @@ onMounted(load);
 watch(() => props.history.revisionId, (now, before) => { if (now !== before) void load(); });
 
 const days = computed(() => buildDailySeries(props.history, props.report, workouts.value));
+const exercises = computed(() => (workouts.value ? analyzeExercises(workouts.value, props.report, props.history.aliases,
+  { bandPercent: props.preferences.strengthBandPercent, durationUnit: props.preferences.durationUnit }) : null));
 </script>
 
 <template>
@@ -69,4 +74,5 @@ const days = computed(() => buildDailySeries(props.history, props.report, workou
   <WeekdayPanel v-else-if="topic === 'weekdays'" :days="days" />
   <FoodPatternsPanel v-else-if="topic === 'foods'" :days="days" :food-days="foodDays" :problem="foodProblem" />
   <ProteinPanel v-else-if="topic === 'protein'" :days="days" />
+  <StrengthPanel v-else-if="topic === 'strength'" :days="days" :exercises="exercises" />
 </template>

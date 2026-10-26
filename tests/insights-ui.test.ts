@@ -108,3 +108,25 @@ test('protein per lb shows the ratio, target consistency, weekly series, and mis
   expect(section.find('tbody tr').text()).toMatch(/14\d g160 g−\d+ g/);
   expect(section.text()).toContain('no other amount is recommended');
 });
+
+test('strength vs body weight labels lifts by window and lists excluded movements', async () => {
+  const app = await open(await seededGateway(), 'Strength vs weight');
+  await flushPromises();
+  const section = app.find('[aria-labelledby="strength-heading"]');
+  expect(section.text()).toContain('Method strength-bodyweight-v1');
+  const rows = section.findAll('tbody tr');
+  expect(rows.map((row) => row.find('th').text())).toEqual(['Back Squat', 'Bench Press']);
+  expect(rows[1].text()).toContain('Gained');
+  expect(rows[0].text()).toContain('Kept');
+  expect(section.find('[aria-label="Selected lift"]').findAll('.category-line')).toHaveLength(3);
+  await rows[1].find('button').trigger('click');
+  expect(section.find('[aria-label="Selected lift"] h3').text()).toBe('Bench Press');
+  const excluded = section.findAll('details').find((item) => item.text().includes('Not compared'))!;
+  expect(excluded.text()).toContain('Assisted Pull-Up');
+  expect(excluded.text()).toContain('Plank');
+  const select = section.find('#strength-window');
+  const phase = select.findAll('option').find((option) => option.text().startsWith('Losing'))!;
+  await select.setValue(phase.element.value);
+  expect(section.find('tbody').text()).toMatch(/Bench Press/);
+  expect(section.text()).not.toMatch(/\b(should|recommend|because)\b/i);
+});

@@ -253,6 +253,7 @@ The Insights page holds long-range analyses over all saved history. Each is a pu
 - **Day-of-week patterns (ticket 18, `weekday-patterns-v1`):** per-weekday intake, target difference, balance, steps, and scale-minus-trend residual, each weekday's share of above-target calories and gross surplus, and weekend vs weekdays, over the last 4 or 12 weeks or all history.
 - **Over-target days (ticket 19, `food-patterns-v1`):** food-detail days classed over, within, or under target (±100 kcal), foods ranked by total and by over-minus-within calories per day, and calories by logged time with the share after 8 PM; workbook-total days are excluded and counted.
 - **Protein per pound (ticket 20, `protein-per-lb-v1`):** protein in grams per lb of trend weight (food detail when present, otherwise the workbook total), its distribution and weekly series, how often your own MacroFactor protein target was met, and every missed day.
+- **Strength vs body weight (ticket 21, `strength-bodyweight-v1`):** for each positive-load lift, the best-session estimated-strength score, trend weight on the session date, and score per lb, with Gained/Kept/Lost over all history, the latest 12 weeks, or a weight phase; assisted, bodyweight, and timed movements are listed, not scored.
 
 ## Free-tier limits and recovery (ticket 13)
 

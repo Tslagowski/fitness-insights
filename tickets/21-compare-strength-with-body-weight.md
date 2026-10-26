@@ -1,6 +1,6 @@
 # 21: Compare strength with body weight during weight change
 
-**Status:** ready-for-agent
+**Status:** in-progress (implemented 2026-10-26; owner review pending)
 
 **GitHub issue:** [#6](https://github.com/Tslagowski/fitness-insights/issues/6)
 

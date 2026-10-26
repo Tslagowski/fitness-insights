@@ -75,3 +75,19 @@ test('protein per lb on a phone: tiles, weekly chart, and missed-day rows', asyn
   await section.screenshot({ path: 'test-results/mobile-protein.png' });
   await context.close();
 });
+
+test('strength vs body weight on a phone: lift rows, charts, and windows', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser);
+  await choose(page, 'Strength vs weight');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Strength vs body weight' }) });
+  await expect(section.locator('.data-row')).toHaveCount(2);
+  await expect(section.locator('.data-row', { hasText: 'Bench Press' })).toContainText('Gained');
+  await section.locator('.data-row', { hasText: 'Bench Press' }).click();
+  await expect(section.locator('.row-details')).toContainText('Score per lb');
+  await expect(section.getByLabel('Selected lift').locator('.category-line')).toHaveCount(3);
+  await section.locator('#strength-window').selectOption({ index: 1 });
+  await expect(section.locator('.data-row').first()).toBeVisible();
+  expect(await fits(page)).toBe(true);
+  await section.screenshot({ path: 'test-results/mobile-strength.png' });
+  await context.close();
+});
