@@ -10,6 +10,7 @@ import WeekdayPanel from './WeekdayPanel.vue';
 import FoodPatternsPanel from './FoodPatternsPanel.vue';
 import ProteinPanel from './ProteinPanel.vue';
 import StrengthPanel from './StrengthPanel.vue';
+import MusclePanel from './MusclePanel.vue';
 import { analyzeExercises } from '../analysis/exercise';
 
 // Long-range analyses over all saved history. Each topic is a pure, versioned calculation over eligible
@@ -23,6 +24,7 @@ const topics = [
   { id: 'foods', label: 'Over-target days' },
   { id: 'protein', label: 'Protein per lb' },
   { id: 'strength', label: 'Strength vs weight' },
+  { id: 'muscles', label: 'Muscle balance' },
 ] as const;
 type Topic = (typeof topics)[number]['id'];
 const topic = ref<Topic>('phases');
@@ -75,4 +77,5 @@ const exercises = computed(() => (workouts.value ? analyzeExercises(workouts.val
   <FoodPatternsPanel v-else-if="topic === 'foods'" :days="days" :food-days="foodDays" :problem="foodProblem" />
   <ProteinPanel v-else-if="topic === 'protein'" :days="days" />
   <StrengthPanel v-else-if="topic === 'strength'" :days="days" :exercises="exercises" />
+  <MusclePanel v-else-if="topic === 'muscles'" :gateway="gateway" :exercises="exercises" :preferences="preferences" />
 </template>

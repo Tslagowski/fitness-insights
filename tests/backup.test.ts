@@ -38,6 +38,20 @@ describe('backup file', () => {
     expect(strFromU8(unzipSync(bytes)['manifest.json'])).not.toMatch(/user_id|token|password|secret|service_role/i);
   });
 
+  test('a backup made before a table existed restores that table empty; a newer backup must include it', async () => {
+    const { bytes } = await sample();
+    const files = unzipSync(bytes);
+    const manifest = JSON.parse(strFromU8(files['manifest.json']));
+    delete manifest.counts.exercise_muscles;
+    delete manifest.files['tables/exercise_muscles.json'];
+    delete files['tables/exercise_muscles.json'];
+    files['manifest.json'] = strToU8(JSON.stringify(manifest));
+    const parsed = await readBackup(zipSync(files));
+    expect(parsed.tables.exercise_muscles).toEqual([]);
+    expect(parsed.manifest.counts.exercise_muscles).toBe(0);
+    await expect(readBackup(tamper(bytes, 'tables/exercise_muscles.json', null))).rejects.toThrow(/exercise_muscles.json is missing/);
+  });
+
   test('damaged, incomplete, foreign, or newer-format files are rejected with a reason', async () => {
     const { bytes } = await sample();
     await expect(readBackup(strToU8('not a zip'))).rejects.toThrow(/not a readable ZIP/);

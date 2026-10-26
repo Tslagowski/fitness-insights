@@ -72,9 +72,13 @@ test('a wider band changes the label, and the band is saved as a preference', as
   expect(app.get('[aria-label="Selected exercise"]').text()).toContain('● Stable');
   const settings = await open(gateway, 'settings');
   await settings.get('#strength-band').setValue('5');
+  await settings.get('#stall-comparisons').setValue('4');
+  await settings.get('#secondary-credit').setValue('0.5');
   await settings.get('form').trigger('submit');
   await flushPromises();
   expect(gateway.strengthBandPercent).toBe(5);
+  expect(gateway.stallComparisons).toBe(4);
+  expect(gateway.secondarySetCredit).toBe(0.5);
 });
 
 test('a failed load says so and offers a retry without changing anything', async () => {

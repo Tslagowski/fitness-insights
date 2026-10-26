@@ -11,7 +11,7 @@ const emit = defineEmits<{ preferencesRestored: [preferences: Preferences] }>();
 const labels: Record<BackupTable, string> = {
   source_files: 'Original export files', data_revisions: 'Data versions', import_batches: 'Imports, corrections, and undos', import_batch_sources: 'Import file links',
   daily_records: 'Daily records (incl. superseded)', food_days: 'Food days (incl. superseded)', workout_days: 'Workout days (incl. superseded)', reports: 'Saved reports',
-  exercise_aliases: 'Exercise display names', review_decisions: 'Weigh-in review decisions', completeness_marks: 'Incomplete-day marks',
+  exercise_aliases: 'Exercise display names', review_decisions: 'Weigh-in review decisions', completeness_marks: 'Incomplete-day marks', exercise_muscles: 'Exercise muscle mapping',
 };
 
 // Download
@@ -31,7 +31,8 @@ async function download() {
     }
     downloading.value = 'Building the backup file…';
     const bytes = await buildBackup(data, archives, { display_density: props.preferences.displayDensity, duration_unit: props.preferences.durationUnit,
-      strength_band_percent: props.preferences.strengthBandPercent }, new Date().toISOString());
+      strength_band_percent: props.preferences.strengthBandPercent,
+      stall_comparisons: props.preferences.stallComparisons, secondary_set_credit: props.preferences.secondarySetCredit }, new Date().toISOString());
     const name = backupFileName(reportingToday());
     const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/zip' }));
     const link = document.createElement('a');
@@ -120,7 +121,8 @@ async function restore() {
       const identity = await props.gateway.getIdentity();
       if (identity) {
         const saved = await props.gateway.savePreferences(identity.id, { displayDensity: backup.manifest.preferences.display_density === 'compact' ? 'compact' : 'comfortable',
-          durationUnit: backup.manifest.preferences.duration_unit === 'minutes' ? 'minutes' : 'seconds', strengthBandPercent: Number(backup.manifest.preferences.strength_band_percent) || 2.5 });
+          durationUnit: backup.manifest.preferences.duration_unit === 'minutes' ? 'minutes' : 'seconds', strengthBandPercent: Number(backup.manifest.preferences.strength_band_percent) || 2.5,
+          stallComparisons: Number(backup.manifest.preferences.stall_comparisons) || 3, secondarySetCredit: Number(backup.manifest.preferences.secondary_set_credit) === 0.5 ? 0.5 : 0 });
         emit('preferencesRestored', saved);
       }
     } catch { preferenceNote = ' Your display preferences could not be restored; set them again below.'; }

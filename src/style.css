@@ -471,7 +471,15 @@ input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metric-value { font-size: 18px; }
   .selected-day .calendar-details div { flex-direction: column; gap: 2px; }
-  .selected-day dd { text-align: left; }
+  .selected-day dd { text-align: left; justify-self: start; }
 }
 .rows-title { font-size: 13px; margin: 6px 0 0; }
 .food-days .month-heading { border: 0; padding: 14px 2px 6px; background: #fffefa; }
+.mapping-list { display: grid; gap: 10px; margin-top: 8px; }
+.mapping-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 12rem); gap: 6px 12px; align-items: center; }
+.mapping-row select { min-height: 40px; max-width: 100%; }
+.mapping-name { font-weight: 600; overflow-wrap: anywhere; text-align: left; justify-self: start; }
+.secondary-muscles { grid-column: 1 / -1; font-size: 13px; }
+.checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 6px; margin-top: 6px; }
+.checkbox-grid label { display: flex; gap: 6px; align-items: center; min-height: 32px; }
+@media (max-width: 520px) { .mapping-row { grid-template-columns: 1fr; } }

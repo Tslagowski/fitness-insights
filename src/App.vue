@@ -39,6 +39,8 @@ const preferences = ref<Preferences>({ ...defaultPreferences });
 const draftDensity = ref<DisplayDensity>('comfortable');
 const draftDurationUnit = ref<DurationUnit>('seconds');
 const draftBand = ref(defaultPreferences.strengthBandPercent);
+const draftStall = ref(defaultPreferences.stallComparisons);
+const draftCredit = ref<0 | 0.5>(defaultPreferences.secondarySetCredit);
 const currentReport = ref<WrittenReport | null>(null);
 const reportComplete = ref(false);
 const notice = ref('');
@@ -88,6 +90,8 @@ async function refreshIdentity() {
     draftDensity.value = savedPreferences.displayDensity;
     draftDurationUnit.value = savedPreferences.durationUnit;
     draftBand.value = savedPreferences.strengthBandPercent;
+    draftStall.value = savedPreferences.stallComparisons;
+    draftCredit.value = savedPreferences.secondarySetCredit;
     state.value = 'ready';
     void reloadHistory();
   } catch {
@@ -147,7 +151,8 @@ async function save() {
   error.value = '';
   notice.value = '';
   try {
-    const saved = await props.gateway.savePreferences(identity.value.id, { displayDensity: draftDensity.value, durationUnit: draftDurationUnit.value, strengthBandPercent: Math.min(20, Math.max(0.5, Number(draftBand.value) || defaultPreferences.strengthBandPercent)) });
+    const saved = await props.gateway.savePreferences(identity.value.id, { displayDensity: draftDensity.value, durationUnit: draftDurationUnit.value, strengthBandPercent: Math.min(20, Math.max(0.5, Number(draftBand.value) || defaultPreferences.strengthBandPercent)),
+      stallComparisons: Math.min(10, Math.max(2, Math.round(Number(draftStall.value)) || defaultPreferences.stallComparisons)), secondarySetCredit: Number(draftCredit.value) === 0.5 ? 0.5 : 0 });
     if (currentRevision !== revision) return;
     preferences.value = saved;
     notice.value = 'Preference saved. It will be available when you open another device.';
@@ -233,7 +238,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <ChangeHistory v-if="gateway && historyState === 'ready' && history.imports.length" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
             <RetentionPanel v-if="gateway && historyState === 'ready' && history.revisionId !== null" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
             <BackupPanel v-if="gateway" :gateway="gateway" :history="history" :preferences="preferences" :reload-history="reloadHistory"
-              @preferences-restored="(saved) => { preferences = saved; draftDensity = saved.displayDensity; draftDurationUnit = saved.durationUnit; draftBand = saved.strengthBandPercent; }" />
+              @preferences-restored="(saved) => { preferences = saved; draftDensity = saved.displayDensity; draftDurationUnit = saved.durationUnit; draftBand = saved.strengthBandPercent; draftStall = saved.stallComparisons; draftCredit = saved.secondarySetCredit; }" />
             <ServiceStatus v-if="gateway" :gateway="gateway" />
             <section class="section-card"><div class="section-heading"><div><div class="eyebrow">MAKE IT YOURS</div><h2>Display preferences</h2></div><span class="outline-pill">Saved to your account</span></div>
               <form @submit.prevent="save"><label class="field-label" for="density">Display density</label><p class="field-help">Choose how much space to leave between records.</p>
@@ -245,6 +250,12 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
                 <label class="field-label band-label" for="strength-band">Exercise progress label band (%)</label>
                 <p class="field-help">A change in median best score above +band is labeled Progressing, below −band Declining, otherwise Stable. The accepted default is 2.5%. This is a display heuristic, not statistical significance.</p>
                 <input id="strength-band" v-model.number="draftBand" class="text-input band-input" type="number" min="0.5" max="20" step="0.5" inputmode="decimal" :disabled="saving" />
+                <label class="field-label band-label" for="stall-comparisons">Stalled-lift comparisons</label>
+                <p class="field-help">A lift is listed as stalled when its progress label was Stable or Declining in this many rolling comparisons in a row (2-10; default 3).</p>
+                <input id="stall-comparisons" v-model.number="draftStall" class="text-input band-input" type="number" min="2" max="10" step="1" inputmode="numeric" :disabled="saving" />
+                <label class="field-label band-label" for="secondary-credit">Secondary muscle credit</label>
+                <p class="field-help">How much a working set counts toward each secondary muscle in Muscle balance. Primary muscles always get one set.</p>
+                <select id="secondary-credit" v-model.number="draftCredit" :disabled="saving"><option :value="0">None (primary muscle only)</option><option :value="0.5">Half a set</option></select>
                 <div class="form-footer"><span class="muted">Applies after saving.</span><button class="primary-button" type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save preference' }}</button></div>
               </form>
             </section>

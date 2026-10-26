@@ -149,7 +149,7 @@ function describeSession(base: RawSession): ExerciseSession {
   };
 }
 
-function compare(kind: MovementKind, sessions: ExerciseSession[], bandPercent: number): Comparison {
+export function compare(kind: MovementKind, sessions: ExerciseSession[], bandPercent: number): Comparison {
   const empty = { recent: [], previous: [], recentMedian: null, previousMedian: null, changePercent: null };
   if (kind !== 'loaded') {
     const reason = kind === 'mixed' ? 'Mixes positive-load sets with assisted or timed sets, so no single strength label is shown; see each session.'

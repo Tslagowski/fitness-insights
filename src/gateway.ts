@@ -22,9 +22,16 @@ export interface Preferences {
   durationUnit: DurationUnit;
   /** Exercise progress label band in percent: above +band Progressing, below -band Declining (accepted default 2.5). */
   strengthBandPercent: number;
+  /** Consecutive progress comparisons that must all be Stable or Declining for a lift to be listed as stalled (default 3). */
+  stallComparisons: number;
+  /** Set credit a secondary muscle receives: 0 (primary only, default) or 0.5. */
+  secondarySetCredit: 0 | 0.5;
 }
 
-export type PreferenceChanges = Partial<Pick<Preferences, 'displayDensity' | 'durationUnit' | 'strengthBandPercent'>>;
+export type PreferenceChanges = Partial<Pick<Preferences, 'displayDensity' | 'durationUnit' | 'strengthBandPercent' | 'stallComparisons' | 'secondarySetCredit'>>;
+
+/** Owner mapping of an exercise (display name after aliases) to one primary and optional secondary muscles. */
+export interface MuscleMapping { primary: string; secondary: string[] }
 
 export interface Gateway {
   getIdentity(): Promise<Identity | null>;
@@ -70,6 +77,10 @@ export interface Gateway {
   discardRestore(restoreId: string): Promise<void>;
   /** Owner-reviewed cleanup of restore uploads that were never applied (older than ten minutes). */
   discardStaleRestores(): Promise<{ removedUploads: number }>;
+  /** The owner's exercise-to-muscle mapping, keyed by exercise display name. */
+  loadExerciseMuscles(): Promise<Record<string, MuscleMapping>>;
+  /** Sets (or, with null, removes) one exercise's muscle mapping. */
+  saveExerciseMuscles(exerciseName: string, mapping: MuscleMapping | null): Promise<void>;
   /** Sets (or, with null, removes) the cosmetic display name for a logged exercise name. Raw records are unchanged. */
   saveExerciseAlias(sourceName: string, displayName: string | null): Promise<void>;
   /** Records the owner's decision about one specific saved value (latest decision wins). */
@@ -319,4 +330,6 @@ export const defaultPreferences: Preferences = {
   weekStartsOn: 1,
   durationUnit: 'seconds',
   strengthBandPercent: 2.5,
+  stallComparisons: 3,
+  secondarySetCredit: 0,
 };

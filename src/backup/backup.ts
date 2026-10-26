@@ -12,7 +12,9 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 export const backupFormat = 'fitness-insights-backup';
 export const backupFormatVersion = 1;
 export const backupTables = ['source_files', 'data_revisions', 'import_batches', 'import_batch_sources', 'daily_records', 'food_days', 'workout_days',
-  'reports', 'exercise_aliases', 'review_decisions', 'completeness_marks'] as const;
+  'reports', 'exercise_aliases', 'review_decisions', 'completeness_marks', 'exercise_muscles'] as const;
+/** Tables added after format 1 was first written; a backup made before them restores them empty. */
+export const optionalBackupTables: readonly BackupTable[] = ['exercise_muscles'];
 export type BackupTable = (typeof backupTables)[number];
 export type TableRows = Record<BackupTable, Array<Record<string, unknown>>>;
 
@@ -22,7 +24,7 @@ export interface BackupData {
   workspaceState: { active_revision_id: number | null; retained_from_revision_id: number | null };
 }
 
-export interface BackupPreferences { display_density: string; duration_unit: string; strength_band_percent: number }
+export interface BackupPreferences { display_density: string; duration_unit: string; strength_band_percent: number; stall_comparisons?: number; secondary_set_credit?: number }
 
 export interface BackupManifest {
   format: typeof backupFormat;
@@ -99,6 +101,11 @@ export async function readBackup(bytes: Uint8Array): Promise<ParsedBackup> {
   let tableBytes = 0;
   for (const table of backupTables) {
     const name = `tables/${table}.json`;
+    if (!files[name] && optionalBackupTables.includes(table) && manifest.counts?.[table] === undefined) {
+      tables[table] = [];
+      manifest.counts = { ...manifest.counts, [table]: 0 };
+      continue;
+    }
     if (!files[name]) throw new BackupError(`The backup is incomplete: ${name} is missing.`);
     let rows: unknown;
     try { rows = JSON.parse(strFromU8(files[name])); } catch { throw new BackupError(`The backup is damaged: ${name} is not valid.`); }

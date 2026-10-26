@@ -91,3 +91,21 @@ test('strength vs body weight on a phone: lift rows, charts, and windows', async
   await section.screenshot({ path: 'test-results/mobile-strength.png' });
   await context.close();
 });
+
+test('muscle balance on a phone: ratios, muscle rows, stalled lifts, and the mapping editor', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser, { exercise_muscles: [
+    { exercise_name: 'Bench Press', primary_muscle: 'Chest', secondary_muscles: ['Triceps'] },
+    { exercise_name: 'Cable Row', primary_muscle: 'Upper Back', secondary_muscles: [] },
+    { exercise_name: 'Back Squat', primary_muscle: 'Quads', secondary_muscles: [] },
+  ] });
+  await choose(page, 'Muscle balance');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Muscle-group balance' }) });
+  await expect(section.locator('.metric-tile').first()).toContainText('2.00 : 1');
+  await expect(section.getByRole('list', { name: 'Sets per muscle' })).toContainText('Chest');
+  await expect(section.getByRole('list', { name: 'Stalled lifts' })).toContainText('Back Squat');
+  await section.getByText(/Exercise muscle mapping \(3 of 5 mapped\)/).click();
+  await expect(section.locator('#muscle-plank')).toHaveValue('');
+  expect(await fits(page)).toBe(true);
+  await section.screenshot({ path: 'test-results/mobile-muscles.png' });
+  await context.close();
+});

@@ -1,7 +1,7 @@
 import {
   defaultPreferences, NothingToChangeError, ReconciliationRequiredError, RetentionLimitError, StaleRevisionError, CapacityError, type RetentionSummary, type SavedReport, type SavedReportSummary, type CalorieConflict, type ChangeKind,
   type ChangeResult, type ClearableDomain, type ClearDayRequest, type DisplayDensity, type FoodDaySummary, type Gateway, type Identity,
-  type ImportedHistory, type ImportSummary, type PreferenceChanges, type SavedFoodDay, type SavedWorkoutDay, type SourcesCommitRequest,
+  type ImportedHistory, type ImportSummary, type MuscleMapping, type PreferenceChanges, type SavedFoodDay, type SavedWorkoutDay, type SourcesCommitRequest,
   type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview, type WorkoutDaySummary,
 } from '../../src/gateway';
 import type { DurationUnit, WorkoutSet, WorkoutSource } from '../../src/import/workout';
@@ -10,7 +10,7 @@ import type { DailyDomain, DailyValues } from '../../src/import/workbook';
 import { calorieTolerance, foodDayTotals, type FoodEntry, type FoodSource } from '../../src/import/food';
 import { sameValues } from '../../src/import/preview';
 import type { WrittenReport } from '../../src/analysis/report';
-import { backupTables, type BackupData, type BackupManifest, type BackupTable } from '../../src/backup/backup';
+import { backupTables, optionalBackupTables, type BackupData, type BackupManifest, type BackupTable } from '../../src/backup/backup';
 import type { CapacityStatus } from '../../src/backup/capacity';
 import { archivePath } from '../../src/import/sources';
 
@@ -34,6 +34,9 @@ export class MemoryGateway implements Gateway {
   durationUnit: DurationUnit = 'seconds';
   strengthBandPercent = 2.5;
   aliases: Record<string, string> = {};
+  muscles: Record<string, MuscleMapping> = {};
+  stallComparisons = 3;
+  secondarySetCredit: 0 | 0.5 = 0;
   review: ReviewState = { decisions: [], completeness: [] };
   failSave = false;
   failWrites = false;
@@ -62,12 +65,14 @@ export class MemoryGateway implements Gateway {
 
   async getIdentity() { return this.identity; }
   async isOwner() { return this.owner; }
-  async loadPreferences() { return { ...defaultPreferences, displayDensity: this.density, durationUnit: this.durationUnit, strengthBandPercent: this.strengthBandPercent }; }
+  async loadPreferences() { return { ...defaultPreferences, displayDensity: this.density, durationUnit: this.durationUnit, strengthBandPercent: this.strengthBandPercent, stallComparisons: this.stallComparisons, secondarySetCredit: this.secondarySetCredit }; }
   async savePreferences(_userId: string, changes: PreferenceChanges) {
     if (this.failSave) throw new Error('Network unavailable');
     if (changes.displayDensity) this.density = changes.displayDensity;
     if (changes.durationUnit) this.durationUnit = changes.durationUnit;
     if (changes.strengthBandPercent !== undefined) this.strengthBandPercent = changes.strengthBandPercent;
+    if (changes.stallComparisons !== undefined) this.stallComparisons = changes.stallComparisons;
+    if (changes.secondarySetCredit !== undefined) this.secondarySetCredit = changes.secondarySetCredit;
     return this.loadPreferences();
   }
   async signIn() {}
@@ -137,6 +142,18 @@ export class MemoryGateway implements Gateway {
     if (this.failWrites) throw new Error('Network unavailable');
     this.clock += 60_000;
     this.review.completeness.push({ ...mark, decidedAt: new Date(this.clock).toISOString() });
+  }
+
+  async loadExerciseMuscles() {
+    if (this.failReads) throw new Error('Network unavailable');
+    return JSON.parse(JSON.stringify(this.muscles)) as Record<string, MuscleMapping>;
+  }
+
+  async saveExerciseMuscles(exerciseName: string, mapping: MuscleMapping | null) {
+    this.calls.push({ method: 'saveExerciseMuscles', expectedRevisionId: null });
+    if (this.failWrites) throw new Error('Network unavailable');
+    if (mapping) this.muscles[exerciseName] = { primary: mapping.primary, secondary: [...mapping.secondary] };
+    else delete this.muscles[exerciseName];
   }
 
   async saveExerciseAlias(sourceName: string, displayName: string | null) {
@@ -302,6 +319,7 @@ export class MemoryGateway implements Gateway {
         exercise_aliases: Object.entries(this.aliases).map(([source_name, display_name]) => ({ source_name, display_name })),
         review_decisions: copy(this.review.decisions) as unknown as Array<Record<string, unknown>>,
         completeness_marks: copy(this.review.completeness) as unknown as Array<Record<string, unknown>>,
+        exercise_muscles: Object.entries(this.muscles).map(([exercise_name, mapping]) => ({ exercise_name, primary_muscle: mapping.primary, secondary_muscles: [...mapping.secondary] })),
       },
     };
   }
@@ -333,7 +351,7 @@ export class MemoryGateway implements Gateway {
       .sort(([left], [right]) => Number(left.split('|')[1]) - Number(right.split('|')[1])).flatMap(([, value]) => value);
     const counts = Object.fromEntries(backupTables.map((table) => [table, rows(table).length])) as Record<BackupTable, number>;
     for (const table of backupTables) {
-      if (counts[table] !== manifest.counts[table]) throw new Error(`The uploaded backup is incomplete (${table}: ${counts[table]} of ${manifest.counts[table]} rows). Nothing was replaced; upload it again.`);
+      if (counts[table] !== (manifest.counts[table] ?? (optionalBackupTables.includes(table) ? 0 : undefined))) throw new Error(`The uploaded backup is incomplete (${table}: ${counts[table]} of ${manifest.counts[table]} rows). Nothing was replaced; upload it again.`);
     }
     if (dryRun) return counts;
     this.sourceFiles = rows('source_files');
@@ -343,6 +361,7 @@ export class MemoryGateway implements Gateway {
     this.workouts = rows('workout_days') as unknown as WorkoutRow[];
     this.reports = rows('reports') as unknown as SavedReport[];
     this.aliases = Object.fromEntries(rows('exercise_aliases').map((row) => [String(row.source_name), String(row.display_name)]));
+    this.muscles = Object.fromEntries(rows('exercise_muscles').map((row) => [String(row.exercise_name), { primary: String(row.primary_muscle), secondary: (row.secondary_muscles as string[]) ?? [] }]));
     this.review = { decisions: rows('review_decisions') as unknown as ReviewState['decisions'], completeness: rows('completeness_marks') as unknown as ReviewState['completeness'] };
     this.nextRevision = rows('data_revisions').length + 1;
     this.revisionId = manifest.workspace_state.active_revision_id;

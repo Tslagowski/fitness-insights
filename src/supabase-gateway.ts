@@ -13,7 +13,7 @@ import type { CapacityStatus } from './backup/capacity';
 import type { CompletenessStatus, ReviewChoice, ReviewState } from './analysis/eligibility';
 
 const archiveBucket = 'source-archives';
-const preferenceColumns = 'display_density,timezone,week_starts_on,duration_unit,strength_band_percent';
+const preferenceColumns = 'display_density,timezone,week_starts_on,duration_unit,strength_band_percent,stall_comparisons,secondary_set_credit';
 
 function decodePreferences(value: unknown): Preferences {
   const record = value as Record<string, unknown> | null;
@@ -23,7 +23,12 @@ function decodePreferences(value: unknown): Preferences {
   }
   const band = record.strength_band_percent === undefined || record.strength_band_percent === null ? 2.5 : Number(record.strength_band_percent);
   if (!Number.isFinite(band) || band < 0.5 || band > 20) throw new Error('Unsupported saved preference values.');
-  return { displayDensity: record.display_density as DisplayDensity, timezone: 'America/Denver', weekStartsOn: 1, durationUnit: record.duration_unit === 'minutes' ? 'minutes' : 'seconds', strengthBandPercent: band };
+  const stall = record.stall_comparisons === undefined || record.stall_comparisons === null ? 3 : Number(record.stall_comparisons);
+  if (!Number.isInteger(stall) || stall < 2 || stall > 10) throw new Error('Unsupported saved preference values.');
+  const credit = Number(record.secondary_set_credit ?? 0);
+  if (credit !== 0 && credit !== 0.5) throw new Error('Unsupported saved preference values.');
+  return { displayDensity: record.display_density as DisplayDensity, timezone: 'America/Denver', weekStartsOn: 1, durationUnit: record.duration_unit === 'minutes' ? 'minutes' : 'seconds',
+    strengthBandPercent: band, stallComparisons: stall, secondarySetCredit: credit };
 }
 
 export function createGateway(url: string, publishableKey: string, redirectUrl: string): Gateway {
@@ -58,6 +63,8 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
       if (changes.strengthBandPercent !== undefined) row.strength_band_percent = changes.strengthBandPercent;
       if (changes.displayDensity) row.display_density = changes.displayDensity;
       if (changes.durationUnit) row.duration_unit = changes.durationUnit;
+      if (changes.stallComparisons !== undefined) row.stall_comparisons = changes.stallComparisons;
+      if (changes.secondarySetCredit !== undefined) row.secondary_set_credit = changes.secondarySetCredit;
       const { data, error } = await client.from('preferences')
         .upsert(row, { onConflict: 'user_id' })
         .select(preferenceColumns).single();
@@ -189,6 +196,17 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
     async discardRestore(restoreId) {
       const { error } = await client.rpc('discard_restore', { p_restore_id: restoreId });
       if (error) throw translateError(error);
+    },
+    async loadExerciseMuscles() {
+      const { data, error } = await client.from('exercise_muscles').select('exercise_name,primary_muscle,secondary_muscles');
+      if (error) throw error;
+      return Object.fromEntries((data ?? []).map((row) => [String(row.exercise_name), { primary: String(row.primary_muscle), secondary: (row.secondary_muscles as string[] | null) ?? [] }]));
+    },
+    async saveExerciseMuscles(exerciseName, mapping) {
+      const { error } = mapping
+        ? await client.from('exercise_muscles').upsert({ exercise_name: exerciseName, primary_muscle: mapping.primary, secondary_muscles: mapping.secondary, updated_at: new Date().toISOString() }, { onConflict: 'exercise_name' })
+        : await client.from('exercise_muscles').delete().eq('exercise_name', exerciseName);
+      if (error) throw error;
     },
     async saveExerciseAlias(sourceName, displayName) {
       const { error } = displayName && displayName.trim()
