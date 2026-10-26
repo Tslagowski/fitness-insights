@@ -125,3 +125,19 @@ test('training effort on a phone: tiles, distributions, and exercise rows', asyn
   await section.screenshot({ path: 'test-results/mobile-effort.png' });
   await context.close();
 });
+
+test('best and worst sessions on a phone: findings, measures, and session rows', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser);
+  await choose(page, 'Best and worst sessions');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Before your best and worst sessions' }) });
+  await expect(section.getByRole('list', { name: 'Associations' })).toContainText('the day before top-third sessions');
+  await expect(section.getByRole('list', { name: 'Prior-day measures' }).locator('.data-row')).toHaveCount(4);
+  await section.getByText(/Top and bottom sessions \(46\)/).click();
+  const sessions = section.getByRole('list', { name: 'Top and bottom sessions' });
+  await expect(sessions.locator('.data-row')).toHaveCount(20);
+  await sessions.locator('.data-row').first().click();
+  await expect(sessions.locator('.row-details')).toContainText('Bench Press');
+  expect(await fits(page)).toBe(true);
+  await section.screenshot({ path: 'test-results/mobile-precursors.png' });
+  await context.close();
+});

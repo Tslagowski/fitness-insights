@@ -226,7 +226,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 21 | Compare strength with body weight during weight change | Implemented; owner review pending (issue #6) |
 | 22 | Show muscle-group balance and stalled lifts | Implemented; owner review pending (issue #7) |
 | 23 | Track training effort and rep ranges | Implemented; owner review pending (issue #8) |
-| 24 | Find what precedes your best and worst sessions | Ready (issue #9) |
+| 24 | Find what precedes your best and worst sessions | Implemented; owner review pending (issue #9) |
 | 25 | Add long-range reviews and dated notes | Ready (issue #10) |
 | 26 | Make data lists readable on phones | Implemented; owner review pending (issue #11) |
 | 27 | Import the full MacroFactor data export | Implemented; owner import pending (issue #12) |

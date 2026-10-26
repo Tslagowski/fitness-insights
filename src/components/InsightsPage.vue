@@ -12,6 +12,7 @@ import ProteinPanel from './ProteinPanel.vue';
 import StrengthPanel from './StrengthPanel.vue';
 import MusclePanel from './MusclePanel.vue';
 import EffortPanel from './EffortPanel.vue';
+import PrecursorPanel from './PrecursorPanel.vue';
 import { analyzeExercises } from '../analysis/exercise';
 
 // Long-range analyses over all saved history. Each topic is a pure, versioned calculation over eligible
@@ -27,6 +28,7 @@ const topics = [
   { id: 'strength', label: 'Strength vs weight' },
   { id: 'muscles', label: 'Muscle balance' },
   { id: 'effort', label: 'Effort and reps' },
+  { id: 'precursors', label: 'Best and worst sessions' },
 ] as const;
 type Topic = (typeof topics)[number]['id'];
 const topic = ref<Topic>('phases');
@@ -81,4 +83,5 @@ const exercises = computed(() => (workouts.value ? analyzeExercises(workouts.val
   <StrengthPanel v-else-if="topic === 'strength'" :days="days" :exercises="exercises" />
   <MusclePanel v-else-if="topic === 'muscles'" :gateway="gateway" :exercises="exercises" :preferences="preferences" />
   <EffortPanel v-else-if="topic === 'effort'" :exercises="exercises" />
+  <PrecursorPanel v-else-if="topic === 'precursors'" :days="days" :exercises="exercises" />
 </template>

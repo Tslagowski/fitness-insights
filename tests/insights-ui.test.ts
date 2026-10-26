@@ -178,3 +178,19 @@ test('training effort shows rep ranges, RIR groups, coverage, and per-exercise c
   expect(section.findAll('tbody tr').find((row) => row.find('th').text() === 'Plank')!.text()).toContain('0%');
   expect(section.text()).not.toMatch(/\b(should|recommend|optimal)\b/i);
 });
+
+test('best and worst sessions compare the day before each group with sample sizes and no causal wording', async () => {
+  const app = await open(await seededGateway(), 'Best and worst sessions');
+  await flushPromises();
+  const section = app.find('[aria-labelledby="precursors-heading"]');
+  expect(section.text()).toContain('Method session-precursors-v1');
+  const tiles = section.findAll('.metric-tile');
+  expect(tiles[0].find('.metric-value').text()).toBe('69');
+  expect(tiles[0].text()).toContain('3 training days excluded');
+  expect(tiles[1].find('.metric-value').text()).toBe('23');
+  expect(section.find('[aria-label="Associations"]').text()).toMatch(/Intake the day before top-third sessions averaged [\d,]+ kcal vs [\d,]+ kcal before bottom-third sessions \([+−±][\d,]+ kcal; \d+ vs \d+ days\)/);
+  expect(section.find('[aria-label="Prior-day measures"]').findAll('tbody tr')).toHaveLength(4);
+  expect(section.text()).toContain('not tested for significance');
+  expect(section.text()).not.toMatch(/\b(because|leads to|should|recommend|causes)\b/i);
+  expect(section.find('[aria-label="Top and bottom sessions"]').findAll('tbody tr')).toHaveLength(46);
+});

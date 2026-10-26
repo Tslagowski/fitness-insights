@@ -1,6 +1,6 @@
 # 24: Find what precedes your best and worst sessions
 
-**Status:** ready-for-agent
+**Status:** in-progress (implemented 2026-10-26; owner review pending)
 
 **GitHub issue:** [#9](https://github.com/Tslagowski/fitness-insights/issues/9)
 
