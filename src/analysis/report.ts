@@ -18,20 +18,21 @@ export const overviewTemplateVersion = 'overview-v1';
 export const reportPeriodDays = 28;
 
 export type FindingKind = 'observation' | 'source-estimate' | 'unavailable';
-export type SectionId = 'intake' | 'balance' | 'weight' | 'activity' | 'exercise' | 'data';
+export type SectionId = 'intake' | 'balance' | 'weight' | 'activity' | 'exercise' | 'data' | 'nutrition' | 'training' | 'notes';
 
 export interface Evidence {
   method: string;
-  window?: { start: string; end: string; previousStart: string; previousEnd: string };
+  window?: { start: string; end: string; previousStart?: string; previousEnd?: string };
   counts?: Record<string, number>;
   values?: Record<string, number | string | null>;
   dates?: string[];
 }
 export interface Finding { id: string; kind: FindingKind; text: string; evidence: Evidence }
-export interface ReportSection { id: SectionId; title: string; page: 'nutrition' | 'training' | 'settings'; findings: Finding[] }
+export interface ReportSection { id: SectionId; title: string; page: 'nutrition' | 'training' | 'settings' | 'insights'; findings: Finding[] }
 
 export interface ReportInputs {
-  templateVersion: typeof overviewTemplateVersion;
+  /** overview-v1 for the written overview; review-v1 for monthly, quarterly, and yearly reviews (ticket 25). */
+  templateVersion: string;
   methods: { intake: string; trends: string; exercise: string };
   revisionId: number | null;
   reportDate: string;
@@ -41,6 +42,11 @@ export interface ReportInputs {
   settings: { durationUnit: Preferences['durationUnit']; strengthBandPercent: number };
   review: { excluded: string[]; kept: string[]; pending: string[]; incompleteDates: string[] };
   aliases: Record<string, string>;
+  /** Reviews only: the calendar period, the other analysis methods used, and the notes as they stood. */
+  period?: { kind: 'month' | 'quarter' | 'year'; start: string; end: string; label: string; partial: boolean };
+  reviewMethods?: Record<string, string>;
+  reviewSettings?: { stallComparisons: number; secondarySetCredit: number };
+  notes?: Array<{ id: string; version: number; startDate: string; endDate: string; text: string; category: string | null }>;
 }
 
 export interface WrittenReport { inputs: ReportInputs; sections: ReportSection[] }

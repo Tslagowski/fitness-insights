@@ -483,3 +483,16 @@ input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
 .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 6px; margin-top: 6px; }
 .checkbox-grid label { display: flex; gap: 6px; align-items: center; min-height: 32px; }
 @media (max-width: 520px) { .mapping-row { grid-template-columns: 1fr; } }
+.band-before { fill: #8f7ad6; background: #8f7ad6; }
+.band-after { fill: #1f9e89; background: #1f9e89; }
+.note-form { margin: 12px 0; }
+.note-fields { display: grid; gap: 6px; max-width: 32rem; }
+.note-fields textarea { width: 100%; resize: vertical; font: inherit; }
+.note-fields input, .note-fields select { min-height: 40px; max-width: 100%; }
+.note-list { display: grid; gap: 10px; }
+.note-list > li { padding: 10px 12px; border: 1px solid #dfe5d8; border-radius: 8px; }
+.note-list > li.is-selected { border-color: #2f6b55; }
+.note-list p { margin: 4px 0; overflow-wrap: anywhere; }
+.note-select { display: flex; gap: 8px; align-items: center; }
+.note-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; font-size: 13px; }
+.note-history { flex-basis: 100%; }

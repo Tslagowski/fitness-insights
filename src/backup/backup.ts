@@ -12,9 +12,9 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 export const backupFormat = 'fitness-insights-backup';
 export const backupFormatVersion = 1;
 export const backupTables = ['source_files', 'data_revisions', 'import_batches', 'import_batch_sources', 'daily_records', 'food_days', 'workout_days',
-  'reports', 'exercise_aliases', 'review_decisions', 'completeness_marks', 'exercise_muscles'] as const;
+  'reports', 'exercise_aliases', 'review_decisions', 'completeness_marks', 'exercise_muscles', 'owner_notes'] as const;
 /** Tables added after format 1 was first written; a backup made before them restores them empty. */
-export const optionalBackupTables: readonly BackupTable[] = ['exercise_muscles'];
+export const optionalBackupTables: readonly BackupTable[] = ['exercise_muscles', 'owner_notes'];
 export type BackupTable = (typeof backupTables)[number];
 export type TableRows = Record<BackupTable, Array<Record<string, unknown>>>;
 

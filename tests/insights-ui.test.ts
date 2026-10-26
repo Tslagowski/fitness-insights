@@ -4,20 +4,12 @@ import App from '../src/App.vue';
 import { addDays } from '../src/analysis/eligibility';
 import { reportingToday } from '../src/import/preview';
 import { MemoryGateway } from './fixtures/memory-gateway';
-import { insightsSeed } from './fixtures/insights-seed';
+import { seededGateway } from './fixtures/insights-gateway';
 
 const mounted: VueWrapper[] = [];
 afterEach(() => { mounted.splice(0).forEach((wrapper) => wrapper.unmount()); window.location.hash = ''; });
 const yesterday = addDays(reportingToday(), -1);
 
-export async function seededGateway() {
-  const gateway = new MemoryGateway();
-  gateway.clock = Date.now();
-  const seed = insightsSeed(yesterday);
-  await gateway.commitSources({ requestId: 'seed', expectedRevisionId: null, acceptReconciliation: true, daily: seed.daily, food: seed.food, workouts: seed.workouts,
-    sources: [{ name: 'export.xlsx', kind: 'workbook', sha256: 'a'.repeat(64), byteSize: 1, mediaType: 'x', bytes: new Uint8Array() }] });
-  return gateway;
-}
 async function open(gateway: MemoryGateway, topic?: string) {
   window.location.hash = '#insights';
   const app = mount(App, { props: { gateway }, attachTo: document.body });
@@ -193,4 +185,68 @@ test('best and worst sessions compare the day before each group with sample size
   expect(section.text()).toContain('not tested for significance');
   expect(section.text()).not.toMatch(/\b(because|leads to|should|recommend|causes)\b/i);
   expect(section.find('[aria-label="Top and bottom sessions"]').findAll('tbody tr')).toHaveLength(46);
+});
+
+test('dated notes are added, edited with history, compared before and after, marked on the timeline, and removed', async () => {
+  const gateway = await seededGateway();
+  const app = await open(gateway, 'Notes');
+  await flushPromises();
+  const section = app.find('[aria-labelledby="notes-heading"]');
+  expect(section.text()).toContain('No notes yet.');
+  const date = addDays(yesterday, -60);
+  await section.find('#note-text').setValue('Started a new program');
+  await section.find('form').trigger('submit');
+  expect(section.find('[role="alert"]').text()).toContain('Choose the date');
+  await section.find('#note-start').setValue(date);
+  await section.find('#note-category').setValue('Training');
+  await section.find('form').trigger('submit');
+  await flushPromises();
+  expect(gateway.notes).toHaveLength(1);
+  expect(section.find('[aria-label="Your notes"]').text()).toContain('Started a new program');
+  const table = section.find('[aria-label="Before and after"]');
+  expect(table.text()).toContain('Trend rate (lb/week)');
+  expect(table.findAll('tbody tr')[1].text()).toMatch(/Mean intake.*\d,\d{3} \(28d\)/);
+  expect(section.findAll('.note-marker')).toHaveLength(1);
+  await section.findAll('.segmented button')[0].trigger('click');
+  expect(section.text()).toContain('Each measure needs 11 eligible days');
+  await section.findAll('.note-actions button')[0].trigger('click');
+  await section.find('#note-text').setValue('Started a 4-day program');
+  await section.find('form').trigger('submit');
+  await flushPromises();
+  expect(gateway.notes.map((note) => note.version)).toEqual([1, 2]);
+  expect(section.find('.note-history').text()).toContain('History (2 versions)');
+  gateway.failWrites = true;
+  await section.findAll('.note-actions button')[1].trigger('click');
+  await flushPromises();
+  expect(section.find('[role="alert"]').text()).toContain('not saved');
+  gateway.failWrites = false;
+  await section.findAll('.note-actions button')[1].trigger('click');
+  await flushPromises();
+  expect(gateway.notes.at(-1)).toMatchObject({ version: 3, removed: true });
+  expect(section.text()).toContain('No notes yet.');
+});
+
+test('long-range reviews render from existing results, state unavailable sections, and save as an immutable report', async () => {
+  const gateway = await seededGateway();
+  await gateway.saveNote({ id: 'n1', version: 1, startDate: addDays(yesterday, -100), endDate: addDays(yesterday, -100), text: 'Travel week', category: 'Travel', removed: false });
+  const app = await open(gateway, 'Reviews');
+  await flushPromises();
+  const section = app.find('[aria-labelledby="reviews-heading"]');
+  expect(section.text()).toContain('Template review-v1');
+  expect(section.findAll('.report-section').map((item) => item.find('.report-section-title').text())).toEqual(['Weight', 'Nutrition', 'Activity and expenditure', 'Training', 'Your notes', 'About this review']);
+  expect(section.text()).toMatch(/Mean intake was [\d,]+ kcal/);
+  expect(section.text()).toContain('Muscle balance is unavailable');
+  await section.findAll('.segmented button')[1].trigger('click');
+  const options = section.find('#review-period').findAll('option');
+  expect(options.length).toBeGreaterThanOrEqual(2);
+  expect(section.text()).toMatch(/lowest monthly rate|Trend weight change is unavailable/);
+  await section.find('.form-footer .primary-button').trigger('click');
+  await flushPromises();
+  expect(section.find('[role="status"]').text()).toContain('Saved as an immutable report');
+  const saved = await gateway.listReports();
+  expect(saved[0].templateVersion).toBe('review-v1');
+  await section.find('.form-footer .primary-button').trigger('click');
+  await flushPromises();
+  expect(section.find('[role="status"]').text()).toContain('already saved');
+  expect((await gateway.loadReport(saved[0].id))!.content.inputs.period!.kind).toBe('quarter');
 });

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { insightsPage } from './insights-mock';
+import { denverToday, insightsPage, shift } from './insights-mock';
 
 // Tickets 16-25 on a 390px phone: each topic renders without horizontal scrolling.
 const fits = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
@@ -139,5 +139,36 @@ test('best and worst sessions on a phone: findings, measures, and session rows',
   await expect(sessions.locator('.row-details')).toContainText('Bench Press');
   expect(await fits(page)).toBe(true);
   await section.screenshot({ path: 'test-results/mobile-precursors.png' });
+  await context.close();
+});
+
+const noteDate = shift(denverToday, -60);
+test('dated notes on a phone: form, note list, before/after rows, and the timeline marker', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser, { owner_notes: [
+    { note_id: 'n1', version: 1, start_date: noteDate, end_date: noteDate, body: 'Started a new program', category: 'Training', removed: false, created_at: '2026-10-01T00:00:00Z' },
+    { note_id: 'n1', version: 2, start_date: noteDate, end_date: noteDate, body: 'Started a 4-day program', category: 'Training', removed: false, created_at: '2026-10-02T00:00:00Z' },
+  ] });
+  await choose(page, 'Notes');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Dated notes' }) });
+  await expect(section.getByRole('list', { name: 'Your notes' })).toContainText('Started a 4-day program');
+  await expect(section.getByText('History (2 versions)')).toBeVisible();
+  await expect(section.getByRole('list', { name: 'Before and after' }).locator('.data-row')).toHaveCount(7);
+  await expect(section.locator('.note-marker')).toHaveCount(1);
+  await expect(section.locator('.phase-band')).toHaveCount(2);
+  expect(await fits(page)).toBe(true);
+  await section.screenshot({ path: 'test-results/mobile-notes.png' });
+  await context.close();
+});
+
+test('long-range reviews on a phone: period choice and written sections', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser);
+  await choose(page, 'Reviews');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Long-range reviews' }) });
+  await expect(section.locator('.report-section')).toHaveCount(6);
+  await section.getByRole('button', { name: 'Year' }).click();
+  await expect(section.locator('#review-period option').first()).toBeAttached();
+  await expect(section.getByRole('region', { name: 'Weight' })).toContainText('trend weight');
+  expect(await fits(page)).toBe(true);
+  await section.screenshot({ path: 'test-results/mobile-reviews.png' });
   await context.close();
 });

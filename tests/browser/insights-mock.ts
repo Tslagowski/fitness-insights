@@ -2,8 +2,8 @@ import type { Browser, Route } from '@playwright/test';
 import { insightsSeed } from '../fixtures/insights-seed';
 
 // Serves the synthetic 24-week history (tests/fixtures/insights-seed.ts) as the Supabase API would.
-const denverToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-const shift = (date: string, days: number) => { const [y, m, d] = date.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10); };
+export const denverToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+export const shift = (date: string, days: number) => { const [y, m, d] = date.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10); };
 
 export async function insightsPage(browser: Browser, extra: Record<string, unknown> = {}) {
   const seed = insightsSeed(shift(denverToday, -1));

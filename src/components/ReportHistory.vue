@@ -84,8 +84,9 @@ const statusText = computed(() => ({
         <h3>Report saved {{ savedAt(opened.createdAt) }}</h3>
         <button class="text-button" type="button" @click="opened = null">Close</button>
       </div>
+      <p v-if="opened.content.inputs.period" class="field-help">Review of {{ opened.content.inputs.period.label }}{{ opened.content.inputs.period.partial ? ' (in progress when saved)' : '' }}.</p>
       <p class="field-help">Data version {{ opened.content.inputs.revisionId ?? '—' }} · completed days through {{ opened.content.inputs.periodEnd ? formatCalendarDate(opened.content.inputs.periodEnd) : '—' }} · first generated {{ formatCalendarDate(opened.content.inputs.reportDate) }} · exercise band ±{{ opened.content.inputs.settings.strengthBandPercent }}% · durations read as {{ opened.content.inputs.settings.durationUnit }}.</p>
-      <button v-if="current" class="primary-button compare-button" type="button" :aria-pressed="comparing" @click="comparing = !comparing">{{ comparing ? 'Show the saved report' : 'Compare with the current overview' }}</button>
+      <button v-if="current && opened.content.inputs.templateVersion === current.inputs.templateVersion" class="primary-button compare-button" type="button" :aria-pressed="comparing" @click="comparing = !comparing">{{ comparing ? 'Show the saved report' : 'Compare with the current overview' }}</button>
       <div v-if="comparing && comparison" class="report-comparison" aria-label="Comparison with the current overview">
         <h4>What changed in the inputs</h4>
         <p class="field-help">Imports, corrections, settings, and review decisions. These are changes to what the report was calculated from, not changes in your behavior.</p>
@@ -98,7 +99,7 @@ const statusText = computed(() => ({
         </ul>
         <p v-else class="field-help">The findings are identical.</p>
       </div>
-      <ReportView v-else :report="opened.content" heading-level="h4" />
+      <ReportView v-if="!comparing || !comparison || opened.content.inputs.templateVersion !== current?.inputs.templateVersion" :report="opened.content" heading-level="h4" />
     </article>
   </section>
 </template>

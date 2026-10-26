@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import type { Gateway, ImportedHistory, Preferences, SavedFoodDay, SavedWorkoutDay } from '../gateway';
 import type { EligibilityReport } from '../analysis/eligibility';
 import { buildDailySeries } from '../analysis/daily';
-import type { OwnerNote } from '../analysis/notes';
+import { latestNotes, type NoteVersion } from '../analysis/notes';
 import PhasesPanel from './PhasesPanel.vue';
 import ExpenditurePanel from './ExpenditurePanel.vue';
 import WeekdayPanel from './WeekdayPanel.vue';
@@ -13,6 +13,8 @@ import StrengthPanel from './StrengthPanel.vue';
 import MusclePanel from './MusclePanel.vue';
 import EffortPanel from './EffortPanel.vue';
 import PrecursorPanel from './PrecursorPanel.vue';
+import NotesPanel from './NotesPanel.vue';
+import ReviewsPanel from './ReviewsPanel.vue';
 import { analyzeExercises } from '../analysis/exercise';
 
 // Long-range analyses over all saved history. Each topic is a pure, versioned calculation over eligible
@@ -29,12 +31,22 @@ const topics = [
   { id: 'muscles', label: 'Muscle balance' },
   { id: 'effort', label: 'Effort and reps' },
   { id: 'precursors', label: 'Best and worst sessions' },
+  { id: 'notes', label: 'Notes' },
+  { id: 'reviews', label: 'Reviews' },
 ] as const;
 type Topic = (typeof topics)[number]['id'];
 const topic = ref<Topic>('phases');
 
 const workouts = ref<SavedWorkoutDay[] | null>(null);
-const notes = ref<OwnerNote[]>([]);
+const noteVersions = ref<NoteVersion[]>([]);
+const notesProblem = ref('');
+const notes = computed(() => latestNotes(noteVersions.value));
+async function loadNotes() {
+  notesProblem.value = '';
+  try { noteVersions.value = await props.gateway.loadNotes(); }
+  catch { notesProblem.value = 'Your notes could not be loaded. Check your connection and reload; nothing was changed.'; }
+}
+onMounted(loadNotes);
 const problem = ref('');
 const foodDays = ref<SavedFoodDay[] | null>(null);
 const foodProblem = ref('');
@@ -84,4 +96,6 @@ const exercises = computed(() => (workouts.value ? analyzeExercises(workouts.val
   <MusclePanel v-else-if="topic === 'muscles'" :gateway="gateway" :exercises="exercises" :preferences="preferences" />
   <EffortPanel v-else-if="topic === 'effort'" :exercises="exercises" />
   <PrecursorPanel v-else-if="topic === 'precursors'" :days="days" :exercises="exercises" />
+  <NotesPanel v-else-if="topic === 'notes'" :gateway="gateway" :days="days" :versions="noteVersions" :problem="notesProblem" @saved="noteVersions = [...noteVersions, $event]" />
+  <ReviewsPanel v-else-if="topic === 'reviews'" :gateway="gateway" :history="history" :report="report" :preferences="preferences" :days="days" :exercises="exercises" :notes="notes" :workouts-loaded="workouts !== null" />
 </template>

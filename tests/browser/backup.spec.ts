@@ -11,7 +11,7 @@ test('on a phone, the owner downloads a backup and restores it after reviewing a
     data_revisions: [{ id: 1, parent_id: null, created_at: '2026-10-20T15:00:00Z' }],
     import_batches: [], import_batch_sources: [],
     daily_records: [{ id: 1, record_date: '2026-09-01', domain: 'steps', fields: { Steps: 8000 }, source_file_id: 'f1', introduced_revision_id: 1, retired_revision_id: null }],
-    food_days: [], workout_days: [], reports: [], exercise_aliases: [], review_decisions: [], completeness_marks: [], exercise_muscles: [],
+    food_days: [], workout_days: [], reports: [], exercise_aliases: [], review_decisions: [], completeness_marks: [], exercise_muscles: [], owner_notes: [],
   };
   const calls: string[] = [];
   const serve = async (route: Route) => {

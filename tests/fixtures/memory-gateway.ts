@@ -1,7 +1,7 @@
 import {
   defaultPreferences, NothingToChangeError, ReconciliationRequiredError, RetentionLimitError, StaleRevisionError, CapacityError, type RetentionSummary, type SavedReport, type SavedReportSummary, type CalorieConflict, type ChangeKind,
   type ChangeResult, type ClearableDomain, type ClearDayRequest, type DisplayDensity, type FoodDaySummary, type Gateway, type Identity,
-  type ImportedHistory, type ImportSummary, type MuscleMapping, type PreferenceChanges, type SavedFoodDay, type SavedWorkoutDay, type SourcesCommitRequest,
+  type ImportedHistory, type ImportSummary, type MuscleMapping, type NoteDraft, type PreferenceChanges, type SavedFoodDay, type SavedWorkoutDay, type SourcesCommitRequest,
   type SourcesPreview, type SourcesRequest, type SourcesResult, type UndoPreview, type WorkoutDaySummary,
 } from '../../src/gateway';
 import type { DurationUnit, WorkoutSet, WorkoutSource } from '../../src/import/workout';
@@ -10,6 +10,7 @@ import type { DailyDomain, DailyValues } from '../../src/import/workbook';
 import { calorieTolerance, foodDayTotals, type FoodEntry, type FoodSource } from '../../src/import/food';
 import { sameValues } from '../../src/import/preview';
 import type { WrittenReport } from '../../src/analysis/report';
+import type { NoteVersion } from '../../src/analysis/notes';
 import { backupTables, optionalBackupTables, type BackupData, type BackupManifest, type BackupTable } from '../../src/backup/backup';
 import type { CapacityStatus } from '../../src/backup/capacity';
 import { archivePath } from '../../src/import/sources';
@@ -35,6 +36,7 @@ export class MemoryGateway implements Gateway {
   strengthBandPercent = 2.5;
   aliases: Record<string, string> = {};
   muscles: Record<string, MuscleMapping> = {};
+  notes: NoteVersion[] = [];
   stallComparisons = 3;
   secondarySetCredit: 0 | 0.5 = 0;
   review: ReviewState = { decisions: [], completeness: [] };
@@ -142,6 +144,20 @@ export class MemoryGateway implements Gateway {
     if (this.failWrites) throw new Error('Network unavailable');
     this.clock += 60_000;
     this.review.completeness.push({ ...mark, decidedAt: new Date(this.clock).toISOString() });
+  }
+
+  async loadNotes() {
+    if (this.failReads) throw new Error('Network unavailable');
+    return this.notes.map((note) => ({ ...note }));
+  }
+
+  async saveNote(note: NoteDraft) {
+    this.calls.push({ method: 'saveNote', expectedRevisionId: null });
+    if (this.failWrites) throw new Error('Network unavailable');
+    if (this.notes.some((item) => item.id === note.id && item.version === note.version)) throw new Error('duplicate key value violates unique constraint');
+    const saved: NoteVersion = { ...note, text: note.text.trim(), updatedAt: new Date(this.clock + this.notes.length * 1000).toISOString() };
+    this.notes.push(saved);
+    return { ...saved };
   }
 
   async loadExerciseMuscles() {
@@ -319,6 +335,8 @@ export class MemoryGateway implements Gateway {
         exercise_aliases: Object.entries(this.aliases).map(([source_name, display_name]) => ({ source_name, display_name })),
         review_decisions: copy(this.review.decisions) as unknown as Array<Record<string, unknown>>,
         completeness_marks: copy(this.review.completeness) as unknown as Array<Record<string, unknown>>,
+        owner_notes: this.notes.map((note) => ({ note_id: note.id, version: note.version, start_date: note.startDate, end_date: note.endDate, body: note.text,
+          category: note.category, removed: note.removed, created_at: note.updatedAt })),
         exercise_muscles: Object.entries(this.muscles).map(([exercise_name, mapping]) => ({ exercise_name, primary_muscle: mapping.primary, secondary_muscles: [...mapping.secondary] })),
       },
     };
@@ -361,6 +379,8 @@ export class MemoryGateway implements Gateway {
     this.workouts = rows('workout_days') as unknown as WorkoutRow[];
     this.reports = rows('reports') as unknown as SavedReport[];
     this.aliases = Object.fromEntries(rows('exercise_aliases').map((row) => [String(row.source_name), String(row.display_name)]));
+    this.notes = rows('owner_notes').map((row) => ({ id: String(row.note_id), version: Number(row.version), startDate: String(row.start_date), endDate: String(row.end_date),
+      text: String(row.body), category: (row.category as NoteVersion['category']) ?? null, removed: row.removed === true, updatedAt: String(row.created_at) }));
     this.muscles = Object.fromEntries(rows('exercise_muscles').map((row) => [String(row.exercise_name), { primary: String(row.primary_muscle), secondary: (row.secondary_muscles as string[]) ?? [] }]));
     this.review = { decisions: rows('review_decisions') as unknown as ReviewState['decisions'], completeness: rows('completeness_marks') as unknown as ReviewState['completeness'] };
     this.nextRevision = rows('data_revisions').length + 1;

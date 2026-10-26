@@ -11,7 +11,7 @@ const emit = defineEmits<{ preferencesRestored: [preferences: Preferences] }>();
 const labels: Record<BackupTable, string> = {
   source_files: 'Original export files', data_revisions: 'Data versions', import_batches: 'Imports, corrections, and undos', import_batch_sources: 'Import file links',
   daily_records: 'Daily records (incl. superseded)', food_days: 'Food days (incl. superseded)', workout_days: 'Workout days (incl. superseded)', reports: 'Saved reports',
-  exercise_aliases: 'Exercise display names', review_decisions: 'Weigh-in review decisions', completeness_marks: 'Incomplete-day marks', exercise_muscles: 'Exercise muscle mapping',
+  exercise_aliases: 'Exercise display names', review_decisions: 'Weigh-in review decisions', completeness_marks: 'Incomplete-day marks', exercise_muscles: 'Exercise muscle mapping', owner_notes: 'Dated notes (all versions)',
 };
 
 // Download

@@ -1,6 +1,6 @@
 # 25: Add long-range reviews and dated notes
 
-**Status:** ready-for-agent
+**Status:** in-progress (implemented 2026-10-26; owner review pending)
 
 **GitHub issue:** [#10](https://github.com/Tslagowski/fitness-insights/issues/10)
 

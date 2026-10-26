@@ -4,6 +4,7 @@ import type { SourceKind } from './import/sources';
 import type { DurationUnit, WorkoutDay, WorkoutSet, WorkoutSource } from './import/workout';
 import { emptyReviewState, type CompletenessStatus, type ReviewChoice, type ReviewState } from './analysis/eligibility';
 import type { WrittenReport } from './analysis/report';
+import type { NoteCategory, NoteVersion } from './analysis/notes';
 import type { BackupData, BackupManifest, BackupTable } from './backup/backup';
 import type { CapacityStatus } from './backup/capacity';
 
@@ -29,6 +30,8 @@ export interface Preferences {
 }
 
 export type PreferenceChanges = Partial<Pick<Preferences, 'displayDensity' | 'durationUnit' | 'strengthBandPercent' | 'stallComparisons' | 'secondarySetCredit'>>;
+
+export interface NoteDraft { id: string; version: number; startDate: string; endDate: string; text: string; category: NoteCategory | null; removed: boolean }
 
 /** Owner mapping of an exercise (display name after aliases) to one primary and optional secondary muscles. */
 export interface MuscleMapping { primary: string; secondary: string[] }
@@ -77,6 +80,10 @@ export interface Gateway {
   discardRestore(restoreId: string): Promise<void>;
   /** Owner-reviewed cleanup of restore uploads that were never applied (older than ten minutes). */
   discardStaleRestores(): Promise<{ removedUploads: number }>;
+  /** Every stored version of every dated note, oldest first. */
+  loadNotes(): Promise<NoteVersion[]>;
+  /** Appends a version of a note (a new note is version 1; an edit or removal is the next version). */
+  saveNote(note: NoteDraft): Promise<NoteVersion>;
   /** The owner's exercise-to-muscle mapping, keyed by exercise display name. */
   loadExerciseMuscles(): Promise<Record<string, MuscleMapping>>;
   /** Sets (or, with null, removes) one exercise's muscle mapping. */

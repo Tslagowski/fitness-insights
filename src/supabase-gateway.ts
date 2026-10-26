@@ -10,10 +10,16 @@ import type { WorkoutSet, WorkoutSource } from './import/workout';
 import { archivePath } from './import/sources';
 import { backupTables, type BackupData, type BackupTable } from './backup/backup';
 import type { CapacityStatus } from './backup/capacity';
+import type { NoteCategory, NoteVersion } from './analysis/notes';
 import type { CompletenessStatus, ReviewChoice, ReviewState } from './analysis/eligibility';
 
 const archiveBucket = 'source-archives';
 const preferenceColumns = 'display_density,timezone,week_starts_on,duration_unit,strength_band_percent,stall_comparisons,secondary_set_credit';
+
+function decodeNote(row: Record<string, unknown>): NoteVersion {
+  return { id: String(row.note_id), version: Number(row.version), startDate: String(row.start_date), endDate: String(row.end_date), text: String(row.body),
+    category: (row.category as NoteCategory | null) ?? null, removed: row.removed === true, updatedAt: String(row.created_at) };
+}
 
 function decodePreferences(value: unknown): Preferences {
   const record = value as Record<string, unknown> | null;
@@ -196,6 +202,17 @@ export function supabaseGateway(client: SupabaseClient, redirectUrl: string): Ga
     async discardRestore(restoreId) {
       const { error } = await client.rpc('discard_restore', { p_restore_id: restoreId });
       if (error) throw translateError(error);
+    },
+    async loadNotes() {
+      const { data, error } = await client.from('owner_notes').select('note_id,version,start_date,end_date,body,category,removed,created_at').order('created_at').limit(5000);
+      if (error) throw translateError(error);
+      return (data ?? []).map((row) => decodeNote(row as Record<string, unknown>));
+    },
+    async saveNote(note) {
+      const { data, error } = await client.from('owner_notes').insert({ note_id: note.id, version: note.version, start_date: note.startDate, end_date: note.endDate,
+        body: note.text.trim(), category: note.category, removed: note.removed }).select('note_id,version,start_date,end_date,body,category,removed,created_at').single();
+      if (error) throw translateError(error);
+      return decodeNote(data as Record<string, unknown>);
     },
     async loadExerciseMuscles() {
       const { data, error } = await client.from('exercise_muscles').select('exercise_name,primary_muscle,secondary_muscles');
