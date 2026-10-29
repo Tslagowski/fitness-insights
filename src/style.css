@@ -544,3 +544,16 @@ input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
   .sidebar { height: calc(52px + env(safe-area-inset-top)); min-height: 0; }
   .page-tabs { top: calc(58px + env(safe-area-inset-top)); margin: 0 -4px 16px; }
 }
+/* Ticket 32: Insights card grid */
+.insights-intro { margin: 0 0 16px; }
+.insight-group { margin-bottom: 20px; }
+.insight-group-title { font-size: 13px; font-weight: 650; letter-spacing: .4px; text-transform: uppercase; color: #4f6449; margin: 0 0 8px; }
+.insight-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.insight-card-link { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 14px 32px 14px 14px; min-height: 84px; border-radius: 12px; background: #fffefa; border: 1px solid #e0e6d9; color: inherit; text-decoration: none; }
+.insight-card-link:active { background: #f3f6ee; }
+.insight-card-title { font-size: 13px; font-weight: 600; color: #4f6449; }
+.insight-card-value { font-size: 17px; font-weight: 650; color: #172b29; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.insight-card-link.waiting .insight-card-value { font-size: 14px; font-weight: 500; color: #7a8a80; }
+.insight-card-go { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 22px; color: #9aa89d; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin: -6px 0 6px; font-weight: 600; color: #2f6b55; text-decoration: none; }
+@media (max-width: 760px) { .insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .insight-card-value { font-size: 15px; } }

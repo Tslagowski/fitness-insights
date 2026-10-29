@@ -5,17 +5,22 @@ import { addDays } from '../src/analysis/eligibility';
 import { reportingToday } from '../src/import/preview';
 import { MemoryGateway } from './fixtures/memory-gateway';
 import { seededGateway } from './fixtures/insights-gateway';
+import { go } from './fixtures/navigation';
 
 const mounted: VueWrapper[] = [];
 afterEach(() => { mounted.splice(0).forEach((wrapper) => wrapper.unmount()); window.location.hash = ''; });
 const yesterday = addDays(reportingToday(), -1);
 
-async function open(gateway: MemoryGateway, topic?: string) {
+/** Opens Insights and taps the topic's card (default: Weight phases). */
+async function open(gateway: MemoryGateway, topic = 'Weight phases') {
   window.location.hash = '#insights';
   const app = mount(App, { props: { gateway }, attachTo: document.body });
   mounted.push(app);
   await flushPromises();
-  if (topic) { await app.findAll('.topic-picker button').find((button) => button.text() === topic)!.trigger('click'); await flushPromises(); }
+  const card = app.findAll('.insight-card-link').find((link) => link.find('.insight-card-title').text() === topic);
+  if (!card) throw new Error(`No card "${topic}"`);
+  await go(card.attributes('href')!.slice(1));
+  await flushPromises();
   return app;
 }
 
@@ -267,4 +272,26 @@ test('the overview opens on glance tiles, with the written overview folded below
   expect(fold.attributes('open')).toBeUndefined();
   expect(fold.find('#overview-heading').exists()).toBe(true);
   expect(app.find('.feature-grid').exists()).toBe(false);
+});
+
+test('insights open on a grid of topic cards with headline results, and a topic opens from its card', async () => {
+  window.location.hash = '#insights';
+  const app = mount(App, { props: { gateway: await seededGateway() }, attachTo: document.body });
+  mounted.push(app);
+  await flushPromises();
+  await flushPromises();
+  expect(app.findAll('.insight-group-title').map((title) => title.text())).toEqual(['Weight & energy', 'Nutrition', 'Training', 'Notes & reviews']);
+  const card = (title: string) => app.findAll('.insight-card-link').find((link) => link.find('.insight-card-title').text() === title)!;
+  expect(card('Weight phases').text()).toContain('Gaining +0.50 lb/wk');
+  expect(card('Protein per lb').text()).toMatch(/0\.\d\d g\/lb, last 12 weeks/);
+  expect(card('Strength vs weight').text()).toContain('1 gained · 1 kept');
+  expect(card('Muscle balance').text()).toContain('1 stalled lift');
+  expect(card('Effort and reps').text()).toContain('80% of sets at RIR 0-2');
+  expect(card('Notes').text()).toContain('Add your first dated note');
+  expect(card('Day of week').text()).toMatch(/Saturdays \+[\d,]+ kcal vs target/);
+  expect(card('Over-target days').attributes('href')).toBe('#insights/foods');
+  await go('insights/protein');
+  expect(app.find('[aria-labelledby="protein-heading"]').exists()).toBe(true);
+  expect(app.find('.back-link').attributes('href')).toBe('#insights');
+  expect(app.find('.insight-grid').exists()).toBe(false);
 });

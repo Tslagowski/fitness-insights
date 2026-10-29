@@ -4,11 +4,12 @@ import { denverToday, insightsPage, shift } from './insights-mock';
 // Tickets 16-25 on a 390px phone: each topic renders without horizontal scrolling.
 const fits = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 async function choose(page: Page, topic: string) {
-  await page.getByRole('group', { name: 'Analysis topic' }).getByRole('button', { name: topic, exact: true }).click();
+  await page.locator('.insight-card-link', { has: page.locator('.insight-card-title', { hasText: new RegExp(`^${topic}$`) }) }).click();
 }
 
 test('weight phases on a phone: timeline, phase rows, and evidence', async ({ browser }) => {
   const { context, page } = await insightsPage(browser);
+  await choose(page, 'Weight phases');
   const section = page.locator('section', { has: page.getByRole('heading', { name: 'Weight phases' }) });
   await expect(section.locator('.phase-band')).toHaveCount(3);
   await expect(section.locator('.data-row')).toHaveCount(3);
@@ -170,5 +171,18 @@ test('long-range reviews on a phone: period choice and written sections', async 
   await expect(section.getByRole('region', { name: 'Weight' })).toContainText('trend weight');
   expect(await fits(page)).toBe(true);
   await section.screenshot({ path: 'test-results/mobile-reviews.png' });
+  await context.close();
+});
+
+test('insight cards on a phone: grouped headlines open topics and come back', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser);
+  await expect(page.locator('.insight-card-link')).toHaveCount(11);
+  await expect(page.locator('.insight-card-link', { hasText: 'Weight phases' })).toContainText('lb/wk');
+  expect(await fits(page)).toBe(true);
+  await page.screenshot({ path: 'test-results/mobile-insight-cards.png', fullPage: true });
+  await choose(page, 'Protein per lb');
+  await expect(page).toHaveURL(/#insights\/protein$/);
+  await page.getByRole('link', { name: 'All insights' }).click();
+  await expect(page.locator('.insight-card-link')).toHaveCount(11);
   await context.close();
 });

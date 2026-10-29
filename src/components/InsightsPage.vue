@@ -16,26 +16,23 @@ import PrecursorPanel from './PrecursorPanel.vue';
 import NotesPanel from './NotesPanel.vue';
 import ReviewsPanel from './ReviewsPanel.vue';
 import { analyzeExercises } from '../analysis/exercise';
+import { insightHeadlines, type InsightTopic } from '../analysis/insight-cards';
 
 // Long-range analyses over all saved history. Each topic is a pure, versioned calculation over eligible
 // data (ticket 06); nothing here calls an AI service or predicts, prescribes, or explains causes.
-const props = defineProps<{ gateway: Gateway; history: ImportedHistory; report: EligibilityReport; preferences: Preferences }>();
+const props = defineProps<{ gateway: Gateway; history: ImportedHistory; report: EligibilityReport; preferences: Preferences; view?: string }>();
 
-const topics = [
-  { id: 'phases', label: 'Weight phases' },
-  { id: 'expenditure', label: 'Expenditure per lb' },
-  { id: 'weekdays', label: 'Day of week' },
-  { id: 'foods', label: 'Over-target days' },
-  { id: 'protein', label: 'Protein per lb' },
-  { id: 'strength', label: 'Strength vs weight' },
-  { id: 'muscles', label: 'Muscle balance' },
-  { id: 'effort', label: 'Effort and reps' },
-  { id: 'precursors', label: 'Best and worst sessions' },
-  { id: 'notes', label: 'Notes' },
-  { id: 'reviews', label: 'Reviews' },
-] as const;
-type Topic = (typeof topics)[number]['id'];
-const topic = ref<Topic>('phases');
+const groups: Array<{ label: string; topics: Array<{ id: InsightTopic; label: string }> }> = [
+  { label: 'Weight & energy', topics: [{ id: 'phases', label: 'Weight phases' }, { id: 'expenditure', label: 'Expenditure per lb' }, { id: 'weekdays', label: 'Day of week' }] },
+  { label: 'Nutrition', topics: [{ id: 'foods', label: 'Over-target days' }, { id: 'protein', label: 'Protein per lb' }] },
+  { label: 'Training', topics: [{ id: 'strength', label: 'Strength vs weight' }, { id: 'muscles', label: 'Muscle balance' }, { id: 'effort', label: 'Effort and reps' }, { id: 'precursors', label: 'Best and worst sessions' }] },
+  { label: 'Notes & reviews', topics: [{ id: 'notes', label: 'Notes' }, { id: 'reviews', label: 'Reviews' }] },
+];
+type Topic = InsightTopic;
+const allTopics: Array<{ id: InsightTopic; label: string }> = groups.flatMap((group) => group.topics);
+// The open topic lives in the URL (#insights/<topic>); no topic shows the card grid.
+const topic = computed<Topic | null>(() => (allTopics.some((item) => item.id === props.view) ? props.view as Topic : null));
+const topicLabel = computed(() => allTopics.find((item) => item.id === topic.value)?.label ?? '');
 
 const workouts = ref<SavedWorkoutDay[] | null>(null);
 const noteVersions = ref<NoteVersion[]>([]);
@@ -59,7 +56,7 @@ async function loadFood() {
     foodRevision = props.history.revisionId;
   } catch { foodProblem.value = 'Your food entries could not be loaded. Check your connection and try again; nothing was changed.'; }
 }
-watch([() => topic.value, () => props.history.revisionId], () => { if (topic.value === 'foods') void loadFood(); });
+watch([() => topic.value, () => props.history.revisionId], () => { if (topic.value === 'foods') void loadFood(); }, { immediate: true });
 async function load() {
   problem.value = '';
   try {
@@ -73,20 +70,31 @@ onMounted(load);
 watch(() => props.history.revisionId, (now, before) => { if (now !== before) void load(); });
 
 const days = computed(() => buildDailySeries(props.history, props.report, workouts.value));
+const headlines = computed(() => (topic.value ? null : insightHeadlines(days.value, exercises.value, notes.value, props.history.foodDays.length, props.preferences.stallComparisons)));
 const exercises = computed(() => (workouts.value ? analyzeExercises(workouts.value, props.report, props.history.aliases,
   { bandPercent: props.preferences.strengthBandPercent, durationUnit: props.preferences.durationUnit }) : null));
 </script>
 
 <template>
-  <section class="section-card topic-card" aria-labelledby="insights-topics-heading">
-    <div class="eyebrow">LONG-RANGE ANALYSIS</div>
-    <h2 id="insights-topics-heading" class="visually-hidden">Choose an analysis</h2>
-    <div class="topic-picker" role="group" aria-label="Analysis topic">
-      <button v-for="item in topics" :key="item.id" type="button" :aria-pressed="topic === item.id" @click="topic = item.id">{{ item.label }}</button>
-    </div>
-    <p class="field-help">Every result here is a repeatable calculation over your eligible saved history: the same data always gives the same numbers. Results describe patterns in this history only; they are not forecasts, advice, or explanations of causes.</p>
+  <template v-if="!topic">
+    <p class="field-help insights-intro">Repeatable calculations over your eligible saved history: the same data always gives the same numbers. They describe patterns in this history only, not forecasts, advice, or causes.</p>
     <div v-if="problem" class="alert error" role="alert">{{ problem }}</div>
-  </section>
+    <section v-for="group in groups" :key="group.label" class="insight-group" :aria-label="group.label">
+      <h2 class="insight-group-title">{{ group.label }}</h2>
+      <div class="insight-grid">
+        <a v-for="item in group.topics" :key="item.id" class="insight-card-link" :class="{ waiting: headlines && !headlines[item.id].ready }" :href="`#insights/${item.id}`">
+          <span class="insight-card-title">{{ item.label }}</span>
+          <span class="insight-card-value">{{ headlines?.[item.id].text }}</span>
+          <span class="insight-card-go" aria-hidden="true">›</span>
+        </a>
+      </div>
+    </section>
+  </template>
+  <template v-else>
+    <a class="back-link" href="#insights"><span aria-hidden="true">‹</span> All insights</a>
+    <h2 class="visually-hidden">{{ topicLabel }}</h2>
+    <div v-if="problem" class="alert error" role="alert">{{ problem }}</div>
+  </template>
   <PhasesPanel v-if="topic === 'phases'" :days="days" :notes="notes" />
   <ExpenditurePanel v-else-if="topic === 'expenditure'" :days="days" />
   <WeekdayPanel v-else-if="topic === 'weekdays'" :days="days" />

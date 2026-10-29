@@ -306,7 +306,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <ReportHistory :gateway="gateway" :history="history" :current="currentReport" :complete="reportComplete" />
           </template>
           <template v-else-if="page === 'insights' && gateway && historyState === 'ready' && hasHistory">
-            <InsightsPage :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
+            <InsightsPage :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" :view="sub" />
           </template>
           <template v-else-if="page === 'training' && gateway && history.workoutDays.length">
             <PageTabs page="training" :tabs="pageTabs.training" :active="tab" label="Training views" />
