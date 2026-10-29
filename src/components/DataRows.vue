@@ -15,6 +15,8 @@ export interface DataRow {
   secondary?: string;
   details?: Array<{ label: string; value: string }>;
   dimmed?: boolean;
+  /** Ticket 38: a compact bar comparing a value with its target (for example intake vs target). */
+  meter?: { value: number; target: number };
 }
 
 const props = withDefaults(defineProps<{ rows: DataRow[]; label: string; groupByMonth?: boolean; pageSize?: number; selected?: string | null; unit?: string }>(),
@@ -56,6 +58,8 @@ function toggle(row: DataRow) {
             <span class="row-head"><span class="row-heading">{{ row.heading }}</span><span v-if="row.tag" class="row-status">{{ row.tag }}</span></span>
             <span class="row-primary">{{ row.primary }}</span>
             <span v-if="row.secondary" class="row-secondary">{{ row.secondary }}</span>
+            <span v-if="row.meter" class="row-meter" :class="{ over: row.meter.value > row.meter.target }" aria-hidden="true">
+              <i :style="{ width: `${Math.min(row.meter.value / row.meter.target, 1.5) / 1.5 * 100}%` }"></i><b :style="{ left: `${100 / 1.5}%` }"></b></span>
           </button>
           <dl v-if="expanded === row.key && row.details?.length" class="row-details">
             <div v-for="item in row.details" :key="item.label"><dt>{{ item.label }}</dt><dd>{{ item.value }}</dd></div>

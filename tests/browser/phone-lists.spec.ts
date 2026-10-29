@@ -38,6 +38,10 @@ test('on a phone, daily history and analysis dates read as month-grouped rows th
   await expect(history.locator('.data-row')).toHaveCount(14);
   await expect(history.locator('.month-heading').first()).toHaveText(/^[A-Z][a-z]+ \d{4}$/);
   await expect(history.locator('.data-row').first()).toContainText(/kcal/);
+  // Ticket 38: the Day view lists only recorded values and draws intake against target.
+  await expect(history.getByRole('button', { name: 'Day', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  expect(await history.locator('.row-secondary').allTextContents()).not.toContainEqual(expect.stringContaining('—'));
+  await expect(history.locator('.row-meter').first()).toBeVisible();
   await history.getByRole('button', { name: 'Weight' }).click();
   await expect(history.locator('.data-row').first()).toContainText(/\d+\.\d lb/);
   await history.locator('.data-row').first().click();

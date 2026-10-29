@@ -59,18 +59,28 @@ const rows = computed(() => {
 
 // Phones: one group of values at a time, as month-grouped rows.
 const narrow = useNarrow();
-const view = ref<'intake' | 'weight' | 'activity'>('intake');
-const views = [{ id: 'intake', label: 'Intake' }, { id: 'weight', label: 'Weight' }, { id: 'activity', label: 'Activity' }] as const;
+const view = ref<'day' | 'intake' | 'weight' | 'activity'>('day');
+const views = [{ id: 'day', label: 'Day' }, { id: 'intake', label: 'Intake' }, { id: 'weight', label: 'Weight' }, { id: 'activity', label: 'Activity' }] as const;
 const withUnit = (value: string, unit: string) => (value === '—' ? '—' : `${value} ${unit}`);
+/** Ticket 38: list only what was recorded; "—" stays in the expanded details as "not recorded". */
+const recorded = (parts: string[]) => parts.filter((part) => part && !part.startsWith('—') && !/ —$/.test(part) && !part.includes(' — ')).join(' · ');
+const number = (value: string) => { const parsed = Number(value.replace(/,/g, '')); return value === '—' || !Number.isFinite(parsed) ? null : parsed; };
 const mobileRows = computed<DataRow[]>(() => rows.value.map((row) => {
   const [scale, trend, expenditure] = row.measurements;
   const [calories, protein, fat, carbs] = row.intake;
   const [target, steps] = row.trailing;
+  const intakeValue = number(calories);
+  const targetValue = number(target);
+  const meter = intakeValue !== null && targetValue ? { value: intakeValue, target: targetValue } : undefined;
   const content = view.value === 'weight'
-    ? { primary: withUnit(scale, 'lb'), secondary: `trend ${trend} · expenditure ${withUnit(expenditure, 'kcal')}` }
+    ? { primary: withUnit(scale, 'lb'), secondary: recorded([trend !== '—' ? `trend ${trend}` : '', expenditure !== '—' ? `expenditure ${withUnit(expenditure, 'kcal')}` : '']) }
     : view.value === 'activity'
-      ? { primary: withUnit(steps, 'steps'), secondary: `expenditure ${withUnit(expenditure, 'kcal')}` }
-      : { primary: withUnit(calories, 'kcal'), secondary: `P ${protein} · F ${fat} · C ${carbs} · target ${target} · ${row.source}` };
+      ? { primary: withUnit(steps, 'steps'), secondary: recorded([expenditure !== '—' ? `expenditure ${withUnit(expenditure, 'kcal')}` : '']) }
+      : view.value === 'intake'
+        ? { primary: withUnit(calories, 'kcal'), secondary: recorded([protein !== '—' ? `P ${protein}` : '', fat !== '—' ? `F ${fat}` : '', carbs !== '—' ? `C ${carbs}` : '', target !== '—' ? `target ${target}` : '', row.source !== '—' ? row.source : '']), meter }
+        : { primary: calories !== '—' ? withUnit(calories, 'kcal') : withUnit(scale, 'lb'),
+          secondary: recorded([calories !== '—' && scale !== '—' ? `${scale} lb` : '', steps !== '—' ? `${steps} steps` : '', protein !== '—' ? `${protein} g protein` : '',
+            row.source.includes('marked incomplete') ? 'marked incomplete' : '']), meter };
   return {
     key: row.date, date: row.date, heading: formatShortDate(row.date), tag: row.status || undefined, dimmed: row.planned, ...content,
     details: [
@@ -78,7 +88,7 @@ const mobileRows = computed<DataRow[]>(() => rows.value.map((row) => {
       { label: 'Intake (kcal)', value: calories }, { label: 'Protein (g)', value: protein }, { label: 'Fat (g)', value: fat }, { label: 'Carbs (g)', value: carbs },
       { label: 'Intake source', value: row.source },
       ...trailingColumns.map((column, index) => ({ label: column.label, value: row.trailing[index] })),
-    ],
+    ].map((item) => ({ ...item, value: item.value.startsWith('—') ? `not recorded${item.value.slice(1)}` : item.value })),
   };
 }));
 </script>

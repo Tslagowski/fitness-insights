@@ -627,3 +627,8 @@ input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
 .chart-plot { position: relative; }
 .chart-float { position: absolute; top: -4px; transform: translateX(-50%); margin: 0; padding: 4px 9px; border-radius: 8px; background: var(--brand); color: var(--on-brand); font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .chart-range { font-size: 13px; padding: 6px 0; }
+/* Ticket 38: intake vs target bar in daily rows (target mark at two thirds; the bar is capped at 150%) */
+.row-meter { grid-column: 1 / -1; position: relative; display: block; height: 6px; margin-top: 6px; border-radius: 3px; background: var(--surface-3); overflow: visible; }
+.row-meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+.row-meter.over i { background: #d9822b; }
+.row-meter b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text-2); border-radius: 1px; }

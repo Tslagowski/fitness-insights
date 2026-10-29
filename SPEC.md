@@ -240,7 +240,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 35 | Support dark mode | Implemented; owner review pending (issue #20) |
 | 36 | Make charts touch-friendly | Implemented; owner review pending (issue #21) |
 | 37 | Unify the visual style | Implemented; owner review pending (issue #22) |
-| 38 | Make daily list rows more informative | Ready (issue #23) |
+| 38 | Make daily list rows more informative | Implemented; owner review pending (issue #23) |
 | 39 | Organize Settings into sections | Implemented; owner review pending (issue #24) |
 
 ## 7. Acceptance criteria
