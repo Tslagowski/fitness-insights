@@ -4,6 +4,7 @@ import type { TrendDay } from '../analysis/trends';
 import { formatCalendarDate } from '../import/preview';
 import { barPath, bandLayout, chartHeight as height, chartMargin as margin, compact, dateLabels, linePath, nextIndex, niceStep, plotHeight } from './chart-utils';
 import { useChartWidth } from './use-chart-width';
+import { useScrub } from './use-scrub';
 
 const props = defineProps<{ days: TrendDay[]; selected: string | null }>();
 const emit = defineEmits<{ select: [date: string] }>();
@@ -51,6 +52,8 @@ function onKey(event: KeyboardEvent) {
   event.preventDefault();
   emit('select', props.days[next].date);
 }
+// Ticket 36: drag across the chart to move the selection.
+const scrub = useScrub((x) => { const index = Math.floor((x - layout.value.left(0)) / layout.value.band); return index >= 0 && index < props.days.length ? index : null; }, (index) => emit('select', props.days[index].date));
 </script>
 
 <template>
@@ -63,7 +66,7 @@ function onKey(event: KeyboardEvent) {
           <li><i class="key key-line trend"></i>Trend weight (MacroFactor estimate)</li>
         </ul></figcaption>
       <p v-if="!weightScale" class="field-help">No weigh-ins or trend values in this period.</p>
-      <svg v-else :width="width" :height="height" role="group" tabindex="0" aria-label="Weight chart. Use the left and right arrow keys to choose a day; its values appear below." aria-describedby="selected-trend-day" @keydown="onKey">
+      <svg v-else :width="width" :height="height" role="group" tabindex="0" aria-label="Weight chart. Use the left and right arrow keys to choose a day; its values appear below." aria-describedby="selected-trend-day" @keydown="onKey" @pointerdown="scrub.onPointerdown" @pointermove="scrub.onPointermove" @pointerup="scrub.onPointerup" @pointercancel="scrub.onPointercancel">
         <g class="grid">
           <g v-for="tick in weightScale.ticks" :key="tick"><line :x1="margin.left" :x2="width - margin.right" :y1="weightScale.y(tick)" :y2="weightScale.y(tick)" />
             <text :x="margin.left - 6" :y="weightScale.y(tick) + 3" text-anchor="end">{{ compact(tick) }}</text></g>
@@ -80,7 +83,7 @@ function onKey(event: KeyboardEvent) {
     <figure class="chart-figure">
       <figcaption><h3>Daily steps</h3></figcaption>
       <p v-if="!stepsScale.any" class="field-help">No steps recorded in this period.</p>
-      <svg v-else :width="width" :height="height" role="group" tabindex="0" aria-label="Steps chart. Use the left and right arrow keys to choose a day; its values appear below." aria-describedby="selected-trend-day" @keydown="onKey">
+      <svg v-else :width="width" :height="height" role="group" tabindex="0" aria-label="Steps chart. Use the left and right arrow keys to choose a day; its values appear below." aria-describedby="selected-trend-day" @keydown="onKey" @pointerdown="scrub.onPointerdown" @pointermove="scrub.onPointermove" @pointerup="scrub.onPointerup" @pointercancel="scrub.onPointercancel">
         <g class="grid">
           <g v-for="tick in stepsScale.ticks" :key="tick"><line :x1="margin.left" :x2="width - margin.right" :y1="stepsScale.y(tick)" :y2="stepsScale.y(tick)" />
             <text :x="margin.left - 6" :y="stepsScale.y(tick) + 3" text-anchor="end">{{ compact(tick) }}</text></g>

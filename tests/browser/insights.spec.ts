@@ -186,3 +186,30 @@ test('insight cards on a phone: grouped headlines open topics and come back', as
   await expect(page.locator('.insight-card-link')).toHaveCount(11);
   await context.close();
 });
+
+test('charts on a phone: a finger drag scrubs the selection, labels stay readable, long ranges start recent', async ({ browser }) => {
+  const { context, page } = await insightsPage(browser);
+  await choose(page, 'Best and worst sessions');
+  const chart = page.locator('figure.category-chart').first();
+  await expect(chart.getByRole('button', { name: /^Show all \d+$/ })).toBeVisible();
+  const svg = chart.locator('svg');
+  const box = (await svg.boundingBox())!;
+  const drag = async (fraction: number, type: string) => svg.dispatchEvent(type, { pointerType: 'touch', pointerId: 7, isPrimary: true, bubbles: true,
+    clientX: box.x + box.width * fraction, clientY: box.y + box.height / 2 });
+  await drag(0.2, 'pointerdown');
+  await drag(0.5, 'pointermove');
+  await drag(0.9, 'pointermove');
+  await drag(0.9, 'pointerup');
+  await expect(chart.locator('.chart-float')).toContainText('%');
+  const label = await chart.locator('.chart-float').textContent();
+  await drag(0.3, 'pointerdown');
+  await drag(0.3, 'pointerup');
+  expect(await chart.locator('.chart-float').textContent()).not.toBe(label);
+  const fontSize = await chart.locator('.x-labels text').first().evaluate((node) => getComputedStyle(node).fontSize);
+  expect(parseFloat(fontSize)).toBeGreaterThanOrEqual(12);
+  await chart.getByRole('button', { name: /^Show all \d+$/ }).click();
+  await expect(chart.getByRole('button', { name: 'Show the latest 26' })).toBeVisible();
+  expect(await fits(page)).toBe(true);
+  await chart.screenshot({ path: 'test-results/mobile-chart-scrub.png' });
+  await context.close();
+});

@@ -4,6 +4,7 @@ import type { ExerciseSummary, WeekSets } from '../analysis/exercise';
 import { formatCalendarDate } from '../import/preview';
 import { barPath, bandLayout, chartHeight as height, chartMargin as margin, compact, dateLabels, nextIndex, niceStep, plotHeight } from './chart-utils';
 import { useChartWidth } from './use-chart-width';
+import { useScrub } from './use-scrub';
 
 const props = defineProps<{ exercise: ExerciseSummary | null; weeks: WeekSets[] }>();
 const { root, width } = useChartWidth();
@@ -63,6 +64,8 @@ function onKey(event: KeyboardEvent) {
   picked.value = next;
 }
 const score = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 1 });
+// Ticket 36: drag across the chart to move the selection.
+const scrub = useScrub((x) => { const index = Math.floor((x - scoreLayout.value.left(0)) / scoreLayout.value.band); return index >= 0 && index < points.value.length ? index : null; }, (index) => { picked.value = index; });
 </script>
 
 <template>
@@ -75,7 +78,7 @@ const score = (value: number) => value.toLocaleString('en-US', { maximumFraction
           <li><i class="key key-dot older"></i>Earlier sessions</li>
           <li><i class="key key-line median"></i>Group median</li>
         </ul></figcaption>
-      <svg v-if="scoreScale" :width="width" :height="height" role="group" tabindex="0" aria-label="Score chart. Use the left and right arrow keys to choose a session; its best set appears below." aria-describedby="picked-session" @keydown="onKey">
+      <svg v-if="scoreScale" :width="width" :height="height" role="group" tabindex="0" aria-label="Score chart. Use the left and right arrow keys to choose a session; its best set appears below." aria-describedby="picked-session" @keydown="onKey" @pointerdown="scrub.onPointerdown" @pointermove="scrub.onPointermove" @pointerup="scrub.onPointerup" @pointercancel="scrub.onPointercancel">
         <g class="grid">
           <g v-for="tick in scoreScale.ticks" :key="tick"><line :x1="margin.left" :x2="width - margin.right" :y1="scoreScale.y(tick)" :y2="scoreScale.y(tick)" />
             <text :x="margin.left - 6" :y="scoreScale.y(tick) + 3" text-anchor="end">{{ compact(tick) }}</text></g>

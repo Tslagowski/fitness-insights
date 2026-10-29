@@ -51,6 +51,15 @@ const markers = computed(() => props.notes.flatMap((note) => {
 const labels = computed(() => dateLabels(props.points.map((point) => point.date), x));
 
 const hover = ref<number | null>(null);
+let touching = false;
+function onDown(event: PointerEvent) {
+  if (event.pointerType === 'mouse') return;
+  touching = true;
+  try { (event.currentTarget as Element).setPointerCapture(event.pointerId); } catch { /* synthetic or already-released pointer */ }
+  onMove(event);
+}
+// Touch keeps the last scrubbed date visible after lifting the finger; a mouse clears it on leave.
+function onLeave(event: PointerEvent) { if (event.pointerType === 'mouse') hover.value = null; touching = false; }
 function onMove(event: PointerEvent) {
   const box = (event.currentTarget as SVGElement).getBoundingClientRect();
   const position = Math.floor((event.clientX - box.left - margin.left) / step.value);
@@ -79,7 +88,7 @@ function onKey(event: KeyboardEvent) {
       </ul></figcaption>
     <p v-if="!scale" class="field-help">No values to chart yet.</p>
     <svg v-else :width="width" :height="height" role="group" tabindex="0" :aria-label="`${title}. ${bands.length ? 'Use the left and right arrow keys to choose a phase; its details appear below.' : ''}`"
-      @keydown="onKey" @pointermove="onMove" @pointerleave="hover = null">
+      @keydown="onKey" @pointerdown="onDown" @pointermove="onMove" @pointerleave="onLeave" @pointerup="touching = false">
       <g class="grid">
         <g v-for="tick in scale.ticks" :key="tick"><line :x1="margin.left" :x2="width - margin.right" :y1="scale.y(tick)" :y2="scale.y(tick)" />
           <text :x="margin.left - 6" :y="scale.y(tick) + 3" text-anchor="end">{{ compact(tick) }}</text></g>

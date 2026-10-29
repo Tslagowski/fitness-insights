@@ -4,6 +4,7 @@ import type { IntakeDay } from '../analysis/intake';
 import { formatCalendarDate } from '../import/preview';
 import { barPath, bandLayout, chartHeight as height, chartMargin as margin, compact, dateLabels, linePath, nextIndex, niceStep, plotHeight } from './chart-utils';
 import { useChartWidth } from './use-chart-width';
+import { useScrub } from './use-scrub';
 
 // Charts read the same rows as the headline metrics, so a bar and a number can never disagree.
 const props = defineProps<{ days: IntakeDay[]; selected: string | null }>();
@@ -61,6 +62,8 @@ function onKey(event: KeyboardEvent) {
   event.preventDefault();
   emit('select', props.days[next].date);
 }
+// Ticket 36: drag across the chart to move the selection.
+const scrub = useScrub((x) => { const index = Math.floor((x - layout.value.left(0)) / layout.value.band); return index >= 0 && index < props.days.length ? index : null; }, (index) => emit('select', props.days[index].date));
 </script>
 
 <template>
@@ -73,7 +76,7 @@ function onKey(event: KeyboardEvent) {
           <li><i class="key key-line expenditure"></i>Expenditure (MacroFactor estimate)</li>
           <li><i class="key key-line target"></i>Target</li>
         </ul></figcaption>
-      <svg :width="width" :height="height" role="group" tabindex="0" aria-label="Daily intake chart. Use the left and right arrow keys to choose a day; its values appear below." aria-describedby="selected-day" @keydown="onKey">
+      <svg :width="width" :height="height" role="group" tabindex="0" aria-label="Daily intake chart. Use the left and right arrow keys to choose a day; its values appear below." aria-describedby="selected-day" @keydown="onKey" @pointerdown="scrub.onPointerdown" @pointermove="scrub.onPointermove" @pointerup="scrub.onPointerup" @pointercancel="scrub.onPointercancel">
         <g class="grid">
           <g v-for="tick in intakeScale.ticks" :key="tick"><line :x1="margin.left" :x2="width - margin.right" :y1="intakeScale.y(tick)" :y2="intakeScale.y(tick)" />
             <text :x="margin.left - 6" :y="intakeScale.y(tick) + 3" text-anchor="end">{{ compact(tick) }}</text></g>
@@ -96,7 +99,7 @@ function onKey(event: KeyboardEvent) {
           <li><i class="key key-bar deficit"></i>Modeled deficit (below zero)</li>
         </ul></figcaption>
       <p v-if="!matchedCount" class="field-help">No days in this period have both counted intake and an expenditure estimate, so there is no modeled balance to chart.</p>
-      <svg v-else :width="width" :height="height" role="group" tabindex="0" aria-label="Daily modeled balance chart. Use the left and right arrow keys to choose a day; its values appear below." aria-describedby="selected-day" @keydown="onKey">
+      <svg v-else :width="width" :height="height" role="group" tabindex="0" aria-label="Daily modeled balance chart. Use the left and right arrow keys to choose a day; its values appear below." aria-describedby="selected-day" @keydown="onKey" @pointerdown="scrub.onPointerdown" @pointermove="scrub.onPointermove" @pointerup="scrub.onPointerup" @pointercancel="scrub.onPointercancel">
         <g class="grid">
           <g v-for="tick in balanceScale.ticks" :key="tick"><line :class="{ zero: tick === 0 }" :x1="margin.left" :x2="width - margin.right" :y1="balanceScale.y(tick)" :y2="balanceScale.y(tick)" />
             <text :x="margin.left - 6" :y="balanceScale.y(tick) + 3" text-anchor="end">{{ tick > 0 ? '+' : '' }}{{ compact(tick) }}</text></g>
