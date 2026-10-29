@@ -180,8 +180,9 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
     <aside class="sidebar">
       <a class="brand" href="#overview" @click="navigate('overview')" aria-label="Fitness Insights home">
         <span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span>FITNESS<br><strong>INSIGHTS</strong></span>
+        <span class="brand-text">FITNESS<br><strong>INSIGHTS</strong></span>
       </a>
+      <span class="mobile-title" aria-hidden="true">{{ state === 'ready' ? title : 'Fitness Insights' }}</span>
       <div class="workspace-label">PERSONAL WORKSPACE</div>
       <nav aria-label="Main navigation">
         <a v-for="item in pages" :key="item.id" :href="`#${item.id}`"
@@ -197,14 +198,14 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
     </aside>
 
     <div class="workspace">
-      <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> <strong>{{ title }}</strong></span>
+      <header class="topbar" :class="{ 'phone-hidden': state === 'ready' }"><span class="breadcrumb"><strong>{{ title }}</strong></span>
         <div class="account"><span v-if="state === 'ready'" class="private-label">Owner access</span>
           <button v-if="identity || signOutRequired" class="text-button" @click="signOut" :disabled="signingOut">{{ signingOut ? 'Signing out...' : 'Sign out' }}</button>
           <span v-else class="private-label">Personal workspace</span>
         </div>
       </header>
       <main id="main" tabindex="-1">
-        <div class="page-heading"><div><div class="eyebrow">THE BIG PICTURE</div><h1>{{ title }}</h1></div>
+        <div class="page-heading"><div><h1>{{ title }}</h1></div>
           <span class="calendar-label">Mountain Time <span aria-hidden="true">/</span> Monday-start weeks</span>
         </div>
         <div v-if="error" class="alert error" role="alert">{{ error }}</div>
@@ -260,6 +261,10 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
                 <select id="secondary-credit" v-model.number="draftCredit" :disabled="saving"><option :value="0">None (primary muscle only)</option><option :value="0.5">Half a set</option></select>
                 <div class="form-footer"><span class="muted">Applies after saving.</span><button class="primary-button" type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save preference' }}</button></div>
               </form>
+            </section>
+            <section class="section-card" aria-labelledby="account-heading"><div class="section-heading"><div><h2 id="account-heading">Account</h2></div><span class="outline-pill">Owner access</span></div>
+              <p class="field-help">Signed in with GitHub as {{ identity?.name }}. Only the configured owner can open this workspace.</p>
+              <button class="primary-button secondary" type="button" :disabled="signingOut" @click="signOut">{{ signingOut ? 'Signing out...' : 'Sign out' }}</button>
             </section>
             <section class="section-card"><div class="eyebrow">CONSISTENT ACROSS DEVICES</div><h2>Reporting calendar</h2><dl class="calendar-details"><div><dt>Time zone</dt><dd>America/Denver</dd></div><div><dt>Week starts</dt><dd>Monday</dd></div></dl></section>
           </template>

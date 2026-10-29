@@ -262,7 +262,7 @@ test('the overview opens on glance tiles, with the written overview folded below
   expect(tiles[0].find('.glance-detail').text()).toContain('+0.50 lb/wk');
   expect(tiles[4].find('.glance-value').text()).toBe('21');
   expect(tiles[4].attributes('href')).toBe('#training');
-  expect(glance.findAll('.sparkline path').length).toBe(5);
+  expect(glance.findAll('.sparkline .spark-dot').length).toBe(5);
   const fold = app.find('details.fold');
   expect(fold.attributes('open')).toBeUndefined();
   expect(fold.find('#overview-heading').exists()).toBe(true);

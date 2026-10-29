@@ -53,6 +53,10 @@ The private owner allowlist can only be edited administratively. Database polici
 
 No custom domain, paid model API, or paid hosting is needed. If the free database pauses, resume it in Supabase and retry. The app does not pretend failed saves succeeded. Public code updates use the included Check workflow; publishing is a separate explicit manual workflow.
 
+## Add it to the iPhone home screen (ticket 30)
+
+Open the site in Safari, tap Share, then **Add to Home Screen**. It launches full screen with its own icon (`public/manifest.webmanifest`, `public/icons/`), the title bar sits below the notch, and the tab bar above the home indicator. There is no service worker: nothing is cached offline, and every view reads your data live from Supabase. GitHub sign-in opens GitHub's page and returns to the app; if iOS ever returns to Safari instead, sign in once inside the home-screen app.
+
 ## Architecture and scope
 
 - `src/App.vue`: account lifecycle, navigation, settings, empty states.

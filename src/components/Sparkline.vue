@@ -26,6 +26,6 @@ const path = computed(() => {
 <template>
   <svg class="sparkline" :viewBox="`-3 0 ${width + 6} ${height}`" preserveAspectRatio="none" aria-hidden="true" focusable="false">
     <path v-if="path.d" :d="path.d" />
-    <circle v-if="path.last" :cx="path.last.x" :cy="path.last.y" r="2.5" />
+    <path v-if="path.last" class="spark-dot" :d="`M${path.last.x},${path.last.y}l0,0`" />
   </svg>
 </template>
