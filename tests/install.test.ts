@@ -23,3 +23,10 @@ test('the manifest, icons, and iOS tags make the app installable without caching
   expect(existsSync('public/sw.js') || existsSync('public/service-worker.js')).toBe(false);
   expect(readFileSync('src/main.ts', 'utf8')).not.toContain('serviceWorker');
 });
+
+test('the bottom navigation draws its icons inline with no icon font or external source', () => {
+  const app = readFileSync('src/App.vue', 'utf8');
+  expect(app).toContain('class="nav-icon"');
+  for (const page of ['overview', 'nutrition', 'training', 'insights', 'settings']) expect(app).toMatch(new RegExp(`\\n  ${page}: 'M`));
+  expect(readFileSync('index.html', 'utf8')).not.toMatch(/fonts\.googleapis|font-awesome|material-icons/i);
+});

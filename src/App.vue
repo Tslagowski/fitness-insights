@@ -34,6 +34,14 @@ const pages = [
   { id: 'settings', title: 'Imports & Settings', short: 'Settings', number: '05' },
 ];
 const page = ref('overview');
+/** Ticket 34: simple line icons drawn inline (no icon font or CDN). */
+const navIcons: Record<string, string> = {
+  overview: 'M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z',
+  nutrition: 'M7 3v8a2 2 0 0 0 2 2v8M5 3v5M9 3v5M17 21V3c-2.2 1.2-3 3.5-3 6v4h3',
+  training: 'M3 9v6M6 6v12M18 6v12M21 9v6M6 12h12',
+  insights: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+  settings: 'M12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 0 0 0-7zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1',
+};
 const title = computed(() => pages.find((item) => item.id === page.value)?.title ?? 'Overview');
 const state = ref<'setup' | 'loading' | 'signed-out' | 'denied' | 'error' | 'ready'>('loading');
 const identity = ref<Identity | null>(null);
@@ -200,7 +208,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
       <nav aria-label="Main navigation">
         <a v-for="item in pages" :key="item.id" :href="`#${item.id}`"
           :aria-current="page === item.id ? 'page' : undefined" @click="navigate(item.id)">
-          <span class="nav-number" aria-hidden="true">{{ item.number }}</span>
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path :d="navIcons[item.id]" /></svg>
           <span class="desktop-label">{{ item.title }}</span><span class="mobile-label">{{ item.short }}</span>
           <span class="nav-dot" aria-hidden="true"></span>
         </a>

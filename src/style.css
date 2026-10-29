@@ -568,3 +568,11 @@ input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
 .coverage-details { margin: 6px 0 14px; }
 .coverage-details > summary { cursor: pointer; font-size: 13px; color: #4f6449; min-height: 36px; display: flex; align-items: center; }
 .coverage-warning { margin: 8px 0; }
+/* Ticket 34: navigation icons */
+.nav-icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 760px) {
+  .sidebar nav a { flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 11px; min-height: 52px; color: #a9bab2; }
+  .sidebar nav a[aria-current] { background: transparent; color: #e2edcd; }
+  .sidebar nav a[aria-current] .nav-icon { background: #2d443b; border-radius: 12px; padding: 2px 12px; width: 46px; box-sizing: content-box; height: 22px; }
+  .nav-icon { width: 22px; height: 22px; }
+}
