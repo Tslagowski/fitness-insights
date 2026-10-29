@@ -29,7 +29,7 @@ export async function insightsPage(browser: Browser, extra: Record<string, unkno
     const name = new URL(route.request().url()).pathname.split('/').pop()!;
     return route.fulfill({ json: name in responses ? responses[name] : {} });
   };
-  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:4173/fitness-insights/', viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:4173/fitness-insights/', viewport: { width: Number(process.env.VW ?? 390), height: Number(process.env.VH ?? 844) } });
   await context.addInitScript(() => {
     const expiresAt = Math.floor(Date.now() / 1000) + 3600;
     const payload = btoa(JSON.stringify({ exp: expiresAt, sub: 'owner' })).replace(/=/g, '');

@@ -1,6 +1,6 @@
 # 28: Turn the Overview into a glance dashboard
 
-**Status:** ready-for-agent
+**Status:** in-progress (implemented 2026-10-29; owner review on the phone pending)
 
 **GitHub issue:** [#13](https://github.com/Tslagowski/fitness-insights/issues/13)
 
@@ -17,3 +17,7 @@
 - [ ] UI and phone tests; screenshot reviewed at 430px.
 
 **Constraints:** Primary device is an iPhone 14 Pro Max (430×932 CSS px, notch and home indicator); every change is verified at 390px and 430px with no horizontal page scroll. Presentation only: calculations, method versions, eligibility, and evidence stay exactly as they are and remain reachable. Hosting stays GitHub Pages plus Supabase Free; no new paid services or tracking.
+
+## Implementation evidence (2026-10-29)
+
+`GlanceDashboard.vue` over `src/analysis/glance.ts` (presentation only; values from `summarizeRange`, `analyzeProtein`, and the daily series' confirmed working sets). Five tiles (trend weight with rate, intake vs target, protein per lb, steps, working sets in the latest complete week) each with a comparison, a 12-week sparkline, and its window; tiles below the coverage gate show "—" and the reason. A banner links to pending weigh-in reviews. The written overview is folded below (still generated and saved as before). Arrows were dropped because they could disagree with the text beside them. Verified: unit tests (`glance.test.ts`), app UI test, phone test (`overview.spec.ts`), and a 430×932 screenshot.

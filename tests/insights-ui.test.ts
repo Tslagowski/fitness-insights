@@ -1,5 +1,5 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import App from '../src/App.vue';
 import { addDays } from '../src/analysis/eligibility';
 import { reportingToday } from '../src/import/preview';
@@ -241,12 +241,30 @@ test('long-range reviews render from existing results, state unavailable section
   expect(options.length).toBeGreaterThanOrEqual(2);
   expect(section.text()).toMatch(/lowest monthly rate|Trend weight change is unavailable/);
   await section.find('.form-footer .primary-button').trigger('click');
-  await flushPromises();
-  expect(section.find('[role="status"]').text()).toContain('Saved as an immutable report');
+  await vi.waitFor(() => expect(section.find('[role="status"]').text()).toContain('Saved as an immutable report'));
   const saved = await gateway.listReports();
   expect(saved[0].templateVersion).toBe('review-v1');
   await section.find('.form-footer .primary-button').trigger('click');
-  await flushPromises();
-  expect(section.find('[role="status"]').text()).toContain('already saved');
+  await vi.waitFor(() => expect(section.find('[role="status"]').text()).toContain('already saved'));
   expect((await gateway.loadReport(saved[0].id))!.content.inputs.period!.kind).toBe('quarter');
+});
+
+test('the overview opens on glance tiles, with the written overview folded below', async () => {
+  window.location.hash = '#overview';
+  const app = mount(App, { props: { gateway: await seededGateway() }, attachTo: document.body });
+  mounted.push(app);
+  await flushPromises();
+  await flushPromises();
+  const glance = app.find('[aria-labelledby="glance-heading"]');
+  const tiles = glance.findAll('.glance-tile');
+  expect(tiles.map((tile) => tile.find('.glance-label').text())).toEqual(['Trend weight', 'Intake', 'Protein per lb', 'Steps', 'Working sets']);
+  expect(tiles[0].find('.glance-value').text()).toMatch(/^2\d\d\.\d lb$/);
+  expect(tiles[0].find('.glance-detail').text()).toContain('+0.50 lb/wk');
+  expect(tiles[4].find('.glance-value').text()).toBe('21');
+  expect(tiles[4].attributes('href')).toBe('#training');
+  expect(glance.findAll('.sparkline path').length).toBe(5);
+  const fold = app.find('details.fold');
+  expect(fold.attributes('open')).toBeUndefined();
+  expect(fold.find('#overview-heading').exists()).toBe(true);
+  expect(app.find('.feature-grid').exists()).toBe(false);
 });

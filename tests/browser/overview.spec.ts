@@ -51,6 +51,12 @@ test('on a phone, the owner reads the written overview, which is saved and can b
   const page = await context.newPage();
   await page.goto('./#overview');
 
+  const glance = page.locator('section.glance');
+  await expect(glance.locator('.glance-tile').nth(1)).toContainText('2,386 kcal');
+  await expect(glance.locator('.glance-tile').first()).toContainText('lb/wk');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await glance.screenshot({ path: 'test-results/mobile-glance.png' });
+  await page.locator('details.fold > summary').click();
   const overview = page.locator('section.written-overview');
   await expect(overview).toContainText('Mean intake was 2,386 kcal and median 2,200 kcal');
   await expect(overview).toContainText('Scale weight average: insufficient coverage');

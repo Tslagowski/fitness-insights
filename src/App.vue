@@ -20,6 +20,7 @@ import RetentionPanel from './components/RetentionPanel.vue';
 import BackupPanel from './components/BackupPanel.vue';
 import ServiceStatus from './components/ServiceStatus.vue';
 import InsightsPage from './components/InsightsPage.vue';
+import GlanceDashboard from './components/GlanceDashboard.vue';
 import type { WrittenReport } from './analysis/report';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
@@ -43,6 +44,7 @@ const draftStall = ref(defaultPreferences.stallComparisons);
 const draftCredit = ref<0 | 0.5>(defaultPreferences.secondarySetCredit);
 const currentReport = ref<WrittenReport | null>(null);
 const reportComplete = ref(false);
+const overviewOpen = ref(false);
 const notice = ref('');
 const error = ref('');
 const saving = ref(false);
@@ -272,7 +274,11 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <FoodLog v-if="gateway && history.foodDays.length" :gateway="gateway" :food-days="history.foodDays" :today="reportingToday()" />
           </template>
           <template v-else-if="page === 'overview' && gateway && historyState === 'ready' && hasHistory">
-            <WrittenOverview :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" @generated="(report, complete) => { currentReport = report; reportComplete = complete; }" />
+            <GlanceDashboard :gateway="gateway" :history="history" :report="eligibility" />
+            <details class="fold" :open="overviewOpen" @toggle="overviewOpen = ($event.target as HTMLDetailsElement).open">
+              <summary><span>Written overview</span><span class="muted">Every statement with its evidence</span></summary>
+              <WrittenOverview :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" @generated="(report, complete) => { currentReport = report; reportComplete = complete; }" />
+            </details>
             <DataStatus :report="eligibility" />
             <ReviewQueue :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
             <CompletenessPanel :gateway="gateway" :report="eligibility" :reload-history="reloadHistory" />
@@ -294,7 +300,7 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
           </section>
         </template>
 
-        <section v-if="state === 'setup' || state === 'signed-out' || (state === 'ready' && page === 'overview')" class="feature-grid" aria-label="Planned analysis areas">
+        <section v-if="state === 'setup' || state === 'signed-out' || (state === 'ready' && page === 'overview' && !hasHistory)" class="feature-grid" aria-label="Planned analysis areas">
           <article><span class="feature-number">01 / NUTRITION</span><h3>See the patterns.</h3><p>Intake, weight, and activity in the same context.</p></article>
           <article><span class="feature-number">02 / TRAINING</span><h3>Follow your progress.</h3><p>Exercise history with the details that matter.</p></article>
           <article><span class="feature-number">03 / UNDERSTANDING</span><h3>Know what changed.</h3><p>Clear summaries supported by your records.</p></article>
