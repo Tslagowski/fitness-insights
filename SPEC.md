@@ -237,9 +237,9 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 32 | Show Insights as a grid of summary cards | Implemented; owner review pending (issue #17) |
 | 33 | Tuck method labels and fine print behind an info control | Implemented; owner review pending (issue #18) |
 | 34 | Add icons to the bottom navigation | Implemented; owner review pending (issue #19) |
-| 35 | Support dark mode | Ready (issue #20) |
+| 35 | Support dark mode | Implemented; owner review pending (issue #20) |
 | 36 | Make charts touch-friendly | Ready (issue #21) |
-| 37 | Unify the visual style | Ready (issue #22) |
+| 37 | Unify the visual style | Implemented; owner review pending (issue #22) |
 | 38 | Make daily list rows more informative | Ready (issue #23) |
 | 39 | Organize Settings into sections | Implemented; owner review pending (issue #24) |
 

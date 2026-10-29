@@ -22,6 +22,7 @@ import ServiceStatus from './components/ServiceStatus.vue';
 import InsightsPage from './components/InsightsPage.vue';
 import GlanceDashboard from './components/GlanceDashboard.vue';
 import PageTabs from './components/PageTabs.vue';
+import { readTheme, saveTheme, type ThemeChoice } from './theme';
 import type { WrittenReport } from './analysis/report';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
@@ -54,6 +55,7 @@ const draftCredit = ref<0 | 0.5>(defaultPreferences.secondarySetCredit);
 const currentReport = ref<WrittenReport | null>(null);
 const reportComplete = ref(false);
 const overviewOpen = ref(false);
+const theme = ref<ThemeChoice>(readTheme());
 const notice = ref('');
 const error = ref('');
 const saving = ref(false);
@@ -283,6 +285,11 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
                 <select id="secondary-credit" v-model.number="draftCredit" :disabled="saving"><option :value="0">None (primary muscle only)</option><option :value="0.5">Half a set</option></select>
                 <div class="form-footer"><span class="muted">Applies after saving.</span><button class="primary-button" type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save preference' }}</button></div>
               </form>
+            </section>
+            <section v-if="tab === 'preferences'" class="section-card" aria-labelledby="appearance-heading"><div class="section-heading"><div><h2 id="appearance-heading">Appearance</h2></div><span class="outline-pill">This device</span></div>
+              <label class="field-label" for="theme">Light or dark</label>
+              <p class="field-help">System follows your iPhone's Light or Dark setting. The choice is kept on this device only and applies right away.</p>
+              <select id="theme" v-model="theme" @change="saveTheme(theme)"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
             </section>
             <section v-if="tab === 'preferences'" class="section-card" aria-labelledby="account-heading"><div class="section-heading"><div><h2 id="account-heading">Account</h2></div><span class="outline-pill">Owner access</span></div>
               <p class="field-help">Signed in with GitHub as {{ identity?.name }}. Only the configured owner can open this workspace.</p>

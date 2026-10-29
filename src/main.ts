@@ -3,6 +3,9 @@ import App from './App.vue';
 import { createGateway } from './supabase-gateway';
 import type { Gateway } from './gateway';
 import './style.css';
+import { applyTheme, readTheme } from './theme';
+
+applyTheme(readTheme());
 
 let gateway: Gateway | null = null;
 let configurationProblem = '';
