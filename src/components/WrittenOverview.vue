@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import type { Gateway, ImportedHistory, Preferences, SavedWorkoutDay } from '../gateway';
 import type { EligibilityReport } from '../analysis/eligibility';
@@ -29,7 +30,7 @@ watch(written, (value) => { if (value) emit('generated', value, !workoutsFailed.
 <template>
   <section class="section-card written-overview" aria-labelledby="overview-heading">
     <div class="section-heading"><div><div class="eyebrow">DESCRIPTIVE, FROM YOUR SAVED DATA</div><h2 id="overview-heading">Written overview</h2></div>
-      <span class="outline-pill">Template {{ overviewTemplateVersion }}<template v-if="history.revisionId"> · data version {{ history.revisionId }}</template></span></div>
+      <MethodInfo :label="`Template ${overviewTemplateVersion}`" :note="history.revisionId ? `Data version ${history.revisionId}.` : undefined" /></div>
     <p v-if="!written" class="field-help" role="status">Preparing your overview…</p>
     <template v-else>
       <p class="field-help">The latest {{ written.inputs.periodDays }} completed days<template v-if="written.inputs.periodEnd"> through {{ formatCalendarDate(written.inputs.periodEnd) }}</template>, compared with the {{ written.inputs.periodDays }} days before. Each statement is filled in from the same calculations as the charts; open Evidence to see the dates, counts, and method. Nothing here is advice or an explanation of causes.</p>

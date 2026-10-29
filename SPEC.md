@@ -235,7 +235,7 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 30 | Install as a home-screen app | Implemented; owner review pending (issue #15) |
 | 31 | Split long pages into tabs | Implemented; owner review pending (issue #16) |
 | 32 | Show Insights as a grid of summary cards | Implemented; owner review pending (issue #17) |
-| 33 | Tuck method labels and fine print behind an info control | Ready (issue #18) |
+| 33 | Tuck method labels and fine print behind an info control | Implemented; owner review pending (issue #18) |
 | 34 | Add icons to the bottom navigation | Ready (issue #19) |
 | 35 | Support dark mode | Ready (issue #20) |
 | 36 | Make charts touch-friendly | Ready (issue #21) |

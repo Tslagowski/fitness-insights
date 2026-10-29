@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, ref, watch } from 'vue';
 import type { DailyValues } from '../analysis/daily';
 import { analyzePhases, phasesMethodVersion, type Phase, type MeasureSummary } from '../analysis/phases';
@@ -52,7 +53,7 @@ const settings = computed(() => analysis.value.settings);
 <template>
   <section class="section-card insight-card" aria-labelledby="phases-heading">
     <div class="section-heading"><div><div class="eyebrow">FROM MACROFACTOR'S TREND WEIGHT</div><h2 id="phases-heading">Weight phases</h2></div>
-      <span class="outline-pill">Method {{ phasesMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${phasesMethodVersion}`" /></div>
     <p v-if="!analysis.phases.length" class="field-help">No phase is long enough to label yet. A phase needs {{ settings.minimumDays }} consecutive days with a rolling rate, and each rate needs {{ settings.minimumPoints }} trend values in its {{ settings.windowDays }}-day window.</p>
     <template v-else>
       <p class="field-help">History splits into {{ plural(analysis.phases.length, 'phase') }} by the rate of MacroFactor's trend weight. A plateau is a Maintaining phase: the trend line's rate stayed inside ±{{ settings.gainingAtOrAbove }} lb/week. It describes the trend line only, not your metabolism.</p>

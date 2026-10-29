@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, ref, watch } from 'vue';
 import type { ImportedHistory } from '../gateway';
 import { reasonLabels, type EligibilityReport, type Eligibility } from '../analysis/eligibility';
@@ -110,24 +111,28 @@ const dateRows = computed<DataRow[]>(() => [...(current.value?.days ?? [])].reve
 <template>
   <section class="section-card intake-balance" aria-labelledby="intake-heading">
     <div class="section-heading"><div><div class="eyebrow">COMPLETED DAYS ONLY</div><h2 id="intake-heading">Intake and modeled energy balance</h2></div>
-      <span class="outline-pill">Method {{ intakeMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${intakeMethodVersion}`" /></div>
 
     <p v-if="!current" class="field-help">There is no completed past day with imported intake yet, so there is no period to analyze. Import food entries or a workbook made after the days you want to include.</p>
 
     <template v-else-if="current && previous">
-      <p class="field-help">
-        <template v-if="choice.kind === 'days'">Ends at the latest past day with imported intake ({{ anchor ? formatCalendarDate(anchor) : '—' }}). </template>
-        <template v-if="freshness">Freshness: {{ freshness }}. </template>
-        Headline values need {{ current.required }} of {{ current.length }} days in each period{{ current.length !== 7 && current.length !== 28 ? ' (75% of the period, rounded up)' : '' }}.
-      </p>
-      <ul class="coverage-chips" aria-label="Coverage">
-        <li :class="{ short: !current.intakeCovered }"><strong>{{ current.intake.count }}</strong> of {{ current.length }} days with counted intake<span v-if="!current.intakeCovered"> · Insufficient coverage</span></li>
-        <li :class="{ short: !current.balanceCovered }"><strong>{{ current.balance.count }}</strong> matched intake + expenditure days<span v-if="!current.balanceCovered"> · Insufficient coverage</span></li>
-        <li>Previous period: {{ previous.intake.count }} intake, {{ previous.balance.count }} matched</li>
-      </ul>
-      <p class="field-help source-line">Intake source: food entries on {{ plural(current.intake.sources.detail, 'day') }}, workbook daily totals on {{ plural(current.intake.sources.workbook, 'day') }} (never added together).
-        <template v-if="leftOut.length">Left out of this period: {{ leftOut.join('; ') }}.</template> High-intake days are always kept.</p>
-
+      <!-- Ticket 33: coverage details tucked away when complete; any shortfall stays visible. -->
+      <p v-if="!current.intakeCovered || !current.balanceCovered" class="alert error coverage-warning" role="status">Insufficient coverage in this period: {{ current.intake.count }} of {{ current.length }} days with counted intake, {{ current.balance.count }} matched with expenditure ({{ current.required }} needed).</p>
+      <details class="coverage-details" :open="!current.intakeCovered || !current.balanceCovered">
+        <summary>Data coverage: {{ current.intake.count }} of {{ current.length }} days</summary>
+        <p class="field-help">
+          <template v-if="choice.kind === 'days'">Ends at the latest past day with imported intake ({{ anchor ? formatCalendarDate(anchor) : '—' }}). </template>
+          <template v-if="freshness">Freshness: {{ freshness }}. </template>
+          Headline values need {{ current.required }} of {{ current.length }} days in each period{{ current.length !== 7 && current.length !== 28 ? ' (75% of the period, rounded up)' : '' }}.
+        </p>
+        <ul class="coverage-chips" aria-label="Coverage">
+          <li :class="{ short: !current.intakeCovered }"><strong>{{ current.intake.count }}</strong> of {{ current.length }} days with counted intake<span v-if="!current.intakeCovered"> · Insufficient coverage</span></li>
+          <li :class="{ short: !current.balanceCovered }"><strong>{{ current.balance.count }}</strong> matched intake + expenditure days<span v-if="!current.balanceCovered"> · Insufficient coverage</span></li>
+          <li>Previous period: {{ previous.intake.count }} intake, {{ previous.balance.count }} matched</li>
+        </ul>
+        <p class="field-help source-line">Intake source: food entries on {{ plural(current.intake.sources.detail, 'day') }}, workbook daily totals on {{ plural(current.intake.sources.workbook, 'day') }} (never added together).
+          <template v-if="leftOut.length">Left out of this period: {{ leftOut.join('; ') }}.</template> High-intake days are always kept.</p>
+      </details>
       <h3 class="metric-group-title">Intake distribution</h3>
       <div class="metric-grid" aria-label="Intake metrics">
         <article v-for="tile in intakeTiles" :key="tile.label" class="metric-tile" :class="{ insufficient: tile.value === 'Insufficient coverage' }">

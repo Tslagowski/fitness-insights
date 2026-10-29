@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, ref, watch } from 'vue';
 import type { DailyValues } from '../analysis/daily';
 import type { ExerciseAnalysis } from '../analysis/exercise';
@@ -82,7 +83,7 @@ const sessionText = computed(() => {
 <template>
   <section class="section-card insight-card" aria-labelledby="strength-heading">
     <div class="section-heading"><div><div class="eyebrow">ESTIMATED STRENGTH AND TREND WEIGHT</div><h2 id="strength-heading">Strength vs body weight</h2></div>
-      <span class="outline-pill">Method {{ strengthMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${strengthMethodVersion}`" /></div>
     <p v-if="!exercises" class="field-help">Workout sets are not loaded, so strength cannot be compared yet.</p>
     <template v-else-if="analysis">
       <div class="insight-controls">

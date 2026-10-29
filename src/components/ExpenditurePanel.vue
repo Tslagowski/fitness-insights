@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, ref } from 'vue';
 import type { DailyValues } from '../analysis/daily';
 import { analyzePhases } from '../analysis/phases';
@@ -60,7 +61,7 @@ const rows = computed<DataRow[]>(() => [...result.value.groups].reverse().map((g
 <template>
   <section class="section-card insight-card" aria-labelledby="expenditure-heading">
     <div class="section-heading"><div><div class="eyebrow">CALCULATED FROM MACROFACTOR'S ESTIMATES</div><h2 id="expenditure-heading">Expenditure per pound</h2></div>
-      <span class="outline-pill">Method {{ expenditureMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${expenditureMethodVersion}`" /></div>
     <p class="field-help">How MacroFactor's expenditure estimate moved relative to its trend weight. "Implied" is what expenditure would be if the reference period's kcal per lb held constant; the gap shows whether expenditure changed more or less than the weight change alone accounts for. Both are calculations from MacroFactor's estimates, not a measured metabolic rate or a diagnosis.</p>
     <div class="insight-controls">
       <div class="segmented" role="group" aria-label="Group by"><button type="button" :aria-pressed="view === 'month'" @click="view = 'month'; referenceKey = null">Months</button><button type="button" :aria-pressed="view === 'phase'" @click="view = 'phase'; referenceKey = null">Phases</button></div>

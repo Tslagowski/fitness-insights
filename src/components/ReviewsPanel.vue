@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { CapacityError, StaleRevisionError, type Gateway, type ImportedHistory, type MuscleMapping, type Preferences } from '../gateway';
 import type { EligibilityReport } from '../analysis/eligibility';
@@ -47,7 +48,7 @@ const statusText = computed(() => ({
 <template>
   <section class="section-card insight-card" aria-labelledby="reviews-heading">
     <div class="section-heading"><div><div class="eyebrow">MONTH, QUARTER, AND YEAR IN REVIEW</div><h2 id="reviews-heading">Long-range reviews</h2></div>
-      <span class="outline-pill">Template {{ reviewTemplateVersion }}</span></div>
+      <MethodInfo :label="`Template ${reviewTemplateVersion}`" /></div>
     <p class="field-help">Each review is written from the same calculations as the other analyses, over one calendar period. Anything without enough eligible data says so instead of showing a number.</p>
     <p v-if="!periods.length" class="field-help">No completed days yet.</p>
     <template v-else>

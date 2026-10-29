@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, ref, watch } from 'vue';
 import type { ImportedHistory } from '../gateway';
 import { reasonLabels, type Eligibility, type EligibilityReport } from '../analysis/eligibility';
@@ -70,7 +71,7 @@ const dateRows = computed<DataRow[]>(() => [...(current.value?.days ?? [])].reve
 <template>
   <section class="section-card intake-balance" aria-labelledby="trends-heading">
     <div class="section-heading"><div><div class="eyebrow">EACH MEASURE KEEPS ITS OWN COVERAGE</div><h2 id="trends-heading">Weight and activity</h2></div>
-      <span class="outline-pill">Method {{ trendsMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${trendsMethodVersion}`" /></div>
     <p v-if="!current" class="field-help">There is no completed past day with imported weight or steps yet.</p>
     <template v-else-if="current && previous">
       <ul class="coverage-chips" aria-label="Weight and steps coverage">

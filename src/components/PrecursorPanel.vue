@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, ref } from 'vue';
 import type { DailyValues } from '../analysis/daily';
 import type { ExerciseAnalysis } from '../analysis/exercise';
@@ -44,7 +45,7 @@ const rows = computed<DataRow[]>(() => evidence.value.map((day) => ({
 <template>
   <section class="section-card insight-card" aria-labelledby="precursors-heading">
     <div class="section-heading"><div><div class="eyebrow">ASSOCIATIONS IN YOUR HISTORY, NOT CAUSES</div><h2 id="precursors-heading">Before your best and worst sessions</h2></div>
-      <span class="outline-pill">Method {{ precursorMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${precursorMethodVersion}`" /></div>
     <p v-if="!exercises" class="field-help">Workout sets are not loaded, so sessions cannot be compared yet.</p>
     <template v-else-if="analysis">
       <div class="metric-grid" aria-label="Session counts">

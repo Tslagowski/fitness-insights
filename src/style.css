@@ -557,3 +557,14 @@ input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
 .insight-card-go { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 22px; color: #9aa89d; }
 .back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin: -6px 0 6px; font-weight: 600; color: #2f6b55; text-decoration: none; }
 @media (max-width: 760px) { .insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .insight-card-value { font-size: 15px; } }
+/* Ticket 33: method info control */
+.method-info { position: relative; flex: none; }
+.method-info > summary { list-style: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; border: 1px solid #c9d3c3; color: #4f6449; font: italic 600 15px Georgia, serif; cursor: pointer; }
+.method-info > summary::-webkit-details-marker { display: none; }
+.method-info[open] > summary { background: #172b29; color: #f2f6ef; border-color: #172b29; }
+.method-pop { position: absolute; right: 0; top: 38px; z-index: 8; width: min(280px, 80vw); display: grid; gap: 4px; padding: 12px 14px; border-radius: 10px; background: #fffefa; border: 1px solid #d6dfcf; box-shadow: 0 6px 20px rgba(23, 43, 41, .16); font-size: 12.5px; color: #3c5148; }
+.method-pop strong { color: #172b29; font-size: 13px; }
+@media (max-width: 760px) { .section-heading:has(.method-info) { flex-direction: row; align-items: flex-start; justify-content: space-between; } }
+.coverage-details { margin: 6px 0 14px; }
+.coverage-details > summary { cursor: pointer; font-size: 13px; color: #4f6449; min-height: 36px; display: flex; align-items: center; }
+.coverage-warning { margin: 8px 0; }

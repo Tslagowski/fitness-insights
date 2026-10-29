@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import type { Gateway, ImportedHistory, Preferences, SavedWorkoutDay } from '../gateway';
 import type { EligibilityReport } from '../analysis/eligibility';
@@ -83,7 +84,7 @@ const sessionRows = computed<DataRow[]>(() => shownSessions.value.map((session) 
 <template>
   <section class="section-card intake-balance exercise-progress" aria-labelledby="exercise-heading">
     <div class="section-heading"><div><div class="eyebrow">COMPLETED SESSIONS ONLY</div><h2 id="exercise-heading">Exercise progress</h2></div>
-      <span class="outline-pill">Method {{ exerciseMethodVersion }} · label band ±{{ preferences.strengthBandPercent }}%</span></div>
+      <MethodInfo :label="`Method ${exerciseMethodVersion}`" :note="`Progress label band ±${preferences.strengthBandPercent}% (change it in Settings → Preferences).`" /></div>
     <div v-if="problem" class="alert error" role="alert">{{ problem }} <button class="text-button" type="button" @click="load">Try again</button></div>
     <p v-else-if="loading && !days" class="field-help" role="status">Loading your workout sets…</p>
     <template v-else-if="analysis">

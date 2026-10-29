@@ -111,6 +111,9 @@ test('strength vs body weight labels lifts by window and lists excluded movement
   await flushPromises();
   const section = app.find('[aria-labelledby="strength-heading"]');
   expect(section.text()).toContain('Method strength-bodyweight-v1');
+  // Ticket 33: the method sits behind an info control, not a pill on the card.
+  expect(section.find('.method-info summary').attributes('aria-label')).toBe('About this calculation (Method strength-bodyweight-v1)');
+  expect(section.find('.outline-pill').exists()).toBe(false);
   const rows = section.findAll('tbody tr');
   expect(rows.map((row) => row.find('th').text())).toEqual(['Back Squat', 'Bench Press']);
   expect(rows[1].text()).toContain('Gained');

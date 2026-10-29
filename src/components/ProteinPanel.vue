@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, ref } from 'vue';
 import type { DailyValues } from '../analysis/daily';
 import { addDays } from '../analysis/eligibility';
@@ -38,7 +39,7 @@ const weekText = (index: number) => {
 <template>
   <section class="section-card insight-card" aria-labelledby="protein-heading">
     <div class="section-heading"><div><div class="eyebrow">AGAINST YOUR OWN MACROFACTOR TARGET</div><h2 id="protein-heading">Protein per pound</h2></div>
-      <span class="outline-pill">Method {{ proteinMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${proteinMethodVersion}`" /></div>
     <div class="insight-controls">
       <div class="segmented" role="group" aria-label="Scope">
         <button type="button" :aria-pressed="scope === '28'" @click="scope = '28'">4 weeks</button>

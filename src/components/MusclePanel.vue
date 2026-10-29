@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, onMounted, ref } from 'vue';
 import type { Gateway, MuscleMapping, Preferences } from '../gateway';
 import type { ExerciseAnalysis } from '../analysis/exercise';
@@ -97,7 +98,7 @@ const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 <template>
   <section class="section-card insight-card" aria-labelledby="muscles-heading">
     <div class="section-heading"><div><div class="eyebrow">FROM YOUR OWN EXERCISE MAPPING</div><h2 id="muscles-heading">Muscle-group balance</h2></div>
-      <span class="outline-pill">Method {{ muscleMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${muscleMethodVersion}`" /></div>
     <div v-if="problem" class="alert error" role="alert">{{ problem }}</div>
     <p v-if="!exercises" class="field-help">Workout sets are not loaded, so muscle balance cannot be shown yet.</p>
     <template v-else-if="analysis">

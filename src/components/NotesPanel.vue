@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, ref, watch } from 'vue';
 import type { Gateway } from '../gateway';
 import type { DailyValues } from '../analysis/daily';
@@ -96,7 +97,7 @@ const when = (note: OwnerNote) => (note.endDate === note.startDate ? formatCalen
 <template>
   <section class="section-card insight-card" aria-labelledby="notes-heading">
     <div class="section-heading"><div><div class="eyebrow">PRIVATE, VERSIONED, BACKED UP</div><h2 id="notes-heading">Dated notes</h2></div>
-      <span class="outline-pill">Method {{ noteCompareMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${noteCompareMethodVersion}`" /></div>
     <p class="field-help">Note what changed on a date or across a few dates (a new program, travel, an illness). Notes appear as markers on the weight-phase timeline, and any note can be compared before and after with equal-length windows.</p>
     <div v-if="problem" class="alert error" role="alert">{{ problem }}</div>
     <form class="note-form" aria-label="Note" @submit.prevent="submit">

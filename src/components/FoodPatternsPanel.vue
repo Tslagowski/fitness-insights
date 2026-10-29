@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, ref } from 'vue';
 import type { SavedFoodDay } from '../gateway';
 import type { DailyValues } from '../analysis/daily';
@@ -44,7 +45,7 @@ const rows = computed<DataRow[]>(() => ranked.value.map((row) => ({
 <template>
   <section class="section-card insight-card" aria-labelledby="foods-heading">
     <div class="section-heading"><div><div class="eyebrow">FROM YOUR FOOD DETAIL</div><h2 id="foods-heading">Over-target days</h2></div>
-      <span class="outline-pill">Method {{ foodPatternsMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${foodPatternsMethodVersion}`" /></div>
     <div v-if="problem" class="alert error" role="alert">{{ problem }}</div>
     <p v-else-if="!result" class="field-help">Loading food entries…</p>
     <template v-else>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MethodInfo from './MethodInfo.vue';
 import { computed, ref } from 'vue';
 import type { ExerciseAnalysis } from '../analysis/exercise';
 import { addDays } from '../analysis/eligibility';
@@ -47,7 +48,7 @@ const rows = computed<DataRow[]>(() => (analysis.value?.exercises ?? []).map((ex
 <template>
   <section class="section-card insight-card" aria-labelledby="effort-heading">
     <div class="section-heading"><div><div class="eyebrow">REP RANGES AND REPS IN RESERVE, AS LOGGED</div><h2 id="effort-heading">Training effort</h2></div>
-      <span class="outline-pill">Method {{ effortMethodVersion }}</span></div>
+      <MethodInfo :label="`Method ${effortMethodVersion}`" /></div>
     <p v-if="!exercises" class="field-help">Workout sets are not loaded, so effort cannot be shown yet.</p>
     <p v-else-if="!analysis?.total.sets" class="field-help">No confirmed working sets yet.</p>
     <template v-else>
