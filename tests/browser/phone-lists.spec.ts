@@ -32,10 +32,10 @@ test('on a phone, daily history and analysis dates read as month-grouped rows th
   });
   await context.route('https://test-project.supabase.co/**', serve);
   const page = await context.newPage();
-  await page.goto('./#nutrition');
+  await page.goto('./#nutrition/daily');
 
   const history = page.locator('section', { has: page.getByRole('heading', { name: 'Daily records' }) });
-  await expect(history.locator('.data-row')).toHaveCount(30);
+  await expect(history.locator('.data-row')).toHaveCount(14);
   await expect(history.locator('.month-heading').first()).toHaveText(/^[A-Z][a-z]+ \d{4}$/);
   await expect(history.locator('.data-row').first()).toContainText(/kcal/);
   await history.getByRole('button', { name: 'Weight' }).click();
@@ -44,9 +44,10 @@ test('on a phone, daily history and analysis dates read as month-grouped rows th
   await expect(history.locator('.row-details').first()).toContainText('Steps');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await history.screenshot({ path: 'test-results/mobile-daily-rows.png' });
-  await history.getByRole('button', { name: 'Show 30 more days' }).click();
-  await expect(history.locator('.data-row')).toHaveCount(60);
+  await history.getByRole('button', { name: 'Show 14 more days' }).click();
+  await expect(history.locator('.data-row')).toHaveCount(28);
 
+  await page.getByRole('navigation', { name: 'Nutrition views' }).getByRole('link', { name: 'Summary' }).click();
   const intake = page.locator('section.intake-balance').first();
   await intake.getByText('Dates behind these numbers').click();
   const dateList = intake.locator('.data-rows');

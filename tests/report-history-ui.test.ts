@@ -89,7 +89,7 @@ test('retention is previewed first and removes only versions older than the late
   for (let index = 0; index < 13; index += 1) {
     await gateway.otherDeviceImport([{ date: yesterday(), domain: 'steps', values: { Steps: 10000 + index } }]);
   }
-  const app = await open(gateway, 'settings');
+  const app = await open(gateway, 'settings/data');
   await click(app, 'Review older versions');
   const preview = app.get('[aria-label="Retention preview"]').text();
   expect(preview).toContain('14 versions saved. Keeping versions 3 and later would remove:');

@@ -8,7 +8,7 @@ import { formatCalendarDate, formatShortDate, formatValue, plural } from '../imp
 
 const props = defineProps<{ gateway: Gateway; foodDays: FoodDaySummary[]; today: string }>();
 
-const pageSize = 30;
+const pageSize = 14;
 const shown = ref(pageSize);
 const open = ref<string | null>(null);
 const loading = ref(false);

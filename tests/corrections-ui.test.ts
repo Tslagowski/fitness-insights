@@ -3,13 +3,14 @@ import { afterEach, expect, test } from 'vitest';
 import App from '../src/App.vue';
 import { dailyRow, syntheticWorkbook } from './fixtures/workbook-builder';
 import { MemoryGateway } from './fixtures/memory-gateway';
+import { go } from './fixtures/navigation';
 import { parseWorkbook } from '../src/import/workbook';
 
 const mounted: VueWrapper[] = [];
 afterEach(() => { mounted.splice(0).forEach((wrapper) => wrapper.unmount()); window.location.hash = ''; });
 
-async function openSettings(gateway: MemoryGateway) {
-  window.location.hash = '#settings';
+async function openSettings(gateway: MemoryGateway, view = 'data') {
+  window.location.hash = `#settings/${view}`;
   const app = mount(App, { props: { gateway }, attachTo: document.body });
   mounted.push(app);
   await flushPromises();
@@ -41,7 +42,7 @@ async function seeded() {
 
 test('an overlapping workbook previews its single correction and says which saved dates are kept', async () => {
   const gateway = await seeded();
-  const app = await openSettings(gateway);
+  const app = await openSettings(gateway, 'import');
   await chooseFile(app, syntheticWorkbook([dailyRow('2026-09-02', { 'Weight (lb)': 297.8 }), dailyRow('2026-09-03')]), 'newer.xlsx');
   const summary = app.get('[aria-label="Proposed changes"]').text();
   expect(summary).toMatch(/6\s*new daily records/);
@@ -51,6 +52,7 @@ test('an overlapping workbook previews its single correction and says which save
   expect(app.text()).toContain('Weight (lb): 181 → now Weight (lb): 297.8');
   expect(app.text()).toContain('1 saved date is not in these files and will stay exactly as it is.');
   await click(app, 'Confirm import');
+  await go('settings/data');
   expect(app.text()).toContain('Imported newer.xlsx: 6 added, 1 corrected, 5 unchanged');
 });
 
@@ -88,6 +90,7 @@ test('undo steps back through imports until there is nothing left to undo', asyn
   await click(app, 'Confirm undo');
   expect(gateway.active).toHaveLength(0);
   expect(app.text()).toContain('There is nothing to undo.');
+  await go('settings/import');
   expect(app.text()).toContain('Nothing imported yet.');
 });
 

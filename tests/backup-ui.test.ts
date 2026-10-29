@@ -18,7 +18,7 @@ async function until(condition: () => boolean, what: string) {
   throw new Error(`Timed out waiting for ${what}`);
 }
 const idle = (app: VueWrapper) => !app.text().includes('Building the backup') && !app.text().includes('Collecting your saved') && !app.text().includes('Checking the backup') && !/Uploading|Storing original|Replacing your saved/.test(app.text());
-async function open(gateway: MemoryGateway, page = 'settings') {
+async function open(gateway: MemoryGateway, page = 'settings/data') {
   window.location.hash = `#${page}`;
   const app = mount(App, { props: { gateway }, attachTo: document.body });
   mounted.push(app);

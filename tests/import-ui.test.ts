@@ -50,7 +50,7 @@ test('the owner previews a workbook, confirms it, and another device sees the sa
   expect(commits(gateway)[0].expectedRevisionId).toBeNull();
   expect(phone.text()).toContain('through Sep 2, 2026');
 
-  const computer = await openApp(gateway, 'nutrition');
+  const computer = await openApp(gateway, 'nutrition/daily');
   expect(computer.text()).toContain('2 dates, Sep 1, 2026 – Sep 2, 2026');
   const rows = computer.findAll('.daily-table tbody tr').map((row) => row.text());
   expect(rows[0]).toContain('Sep 2, 2026');

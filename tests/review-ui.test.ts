@@ -48,7 +48,7 @@ test('excluding keeps the value saved, labels it and the affected estimates, and
   expect(gateway.review.decisions).toEqual([expect.objectContaining({ date: '2026-09-13', value: 297.8, decision: 'exclude' })]);
   expect(gateway.active.find((row) => row.date === '2026-09-13' && row.domain === 'scale_weight')?.values).toEqual({ 'Weight (lb)': 297.8 });
 
-  const nutrition = await open(gateway, 'nutrition');
+  const nutrition = await open(gateway, 'nutrition/daily');
   const row = nutrition.findAll('.daily-table tbody tr').map((item) => item.text()).find((text) => text.includes('Sep 13, 2026'))!;
   expect(row).toContain('297.8 (excluded)');
   expect(row).toContain('180.5 †');
@@ -84,7 +84,7 @@ test('marking a day incomplete leaves out only its intake and can be undone; a f
   expect(app.get('[aria-label="Days marked incomplete"]').text()).toContain('Fri, Sep 11, 2026');
   expect(app.text()).toContain('1 day marked with incomplete nutrition logging');
 
-  const nutrition = await open(gateway, 'nutrition');
+  const nutrition = await open(gateway, 'nutrition/daily');
   const row = nutrition.findAll('.daily-table tbody tr').map((item) => item.text()).find((text) => text.includes('Sep 11, 2026'))!;
   expect(row).toContain('workbook total · marked incomplete');
   expect(row).toContain('199.6');

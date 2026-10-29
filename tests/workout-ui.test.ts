@@ -58,7 +58,7 @@ test('a workout CSV import previews, saves, and shows sessions and sets exactly 
   expect(app.get('[role="status"]').text()).toContain('workout days 2 added');
   expect(gateway.active).toHaveLength(0);
 
-  await goTo('training');
+  await goTo('training/log');
   expect(app.text()).toContain('Training log');
   const day = app.findAll('.food-day-toggle').find((item) => item.text().includes('Sep 1, 2026'))!;
   expect(day.text()).toContain('5 sets · 4 exercises · 48 min 32 s');
@@ -79,11 +79,12 @@ test('the duration unit is a saved, visibly provisional setting', async () => {
   const gateway = new MemoryGateway();
   const app = await importWorkouts(gateway);
   await click(app, 'Confirm import');
+  await goTo('settings/preferences');
   await app.get('#duration-unit').setValue('minutes');
   await app.findAll('form').at(-1)!.trigger('submit');
   await flushPromises();
   expect(gateway.durationUnit).toBe('minutes');
-  await goTo('training');
+  await goTo('training/log');
   await app.findAll('.food-day-toggle').find((item) => item.text().includes('Sep 1, 2026'))!.trigger('click');
   await flushPromises();
   expect(app.get('.workout-session').text()).toContain('Duration 48 h 32 min (read as minutes, unverified; raw 2912)');
@@ -93,7 +94,7 @@ test('an explicit alias changes only the display name and can be removed', async
   const gateway = new MemoryGateway();
   const app = await importWorkouts(gateway);
   await click(app, 'Confirm import');
-  await goTo('training');
+  await goTo('training/log');
   await click(app, 'Use “Machine-Assisted Pull-Up”');
   expect(gateway.aliases).toEqual({ 'Machine-Assisted Pull-Up ∈ SS1': 'Machine-Assisted Pull-Up' });
   expect(app.get('[role="status"]').text()).toContain('The logged name is unchanged');
@@ -109,6 +110,7 @@ test('a day of workout sets can be cleared and the clear undone', async () => {
   const gateway = new MemoryGateway();
   const app = await importWorkouts(gateway);
   await click(app, 'Confirm import');
+  await goTo('settings/data');
   await app.get('#correct-date').setValue('2026-09-02');
   await app.get('#correct-domain').setValue('workout_sets');
   await click(app, 'Review clearing');

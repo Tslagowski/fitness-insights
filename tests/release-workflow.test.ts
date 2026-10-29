@@ -40,8 +40,8 @@ function workbook(override?: { date: string; calories: number }) {
   }));
 }
 /** Both simulated devices share one window URL, so bring the phone back to Settings before using it. */
-async function backToSettings() {
-  window.location.hash = '#settings';
+async function backToSettings(view = 'import') {
+  window.location.hash = `#settings/${view}`;
   window.dispatchEvent(new HashChangeEvent('hashchange'));
   for (let attempt = 0; attempt < 8; attempt += 1) await flushPromises();
 }
@@ -89,7 +89,7 @@ test('import on a phone, read on another device, correct, undo, keep reports, an
   mounted.splice(mounted.indexOf(secondOverview), 1);
 
   // Undo the correction from Change history.
-  await backToSettings();
+  await backToSettings('data');
   await button(phone, 'Undo this change').trigger('click');
   await until(() => phone.text().includes('Confirm undo'), 'the undo preview');
   await button(phone, 'Confirm undo').trigger('click');
@@ -107,7 +107,7 @@ test('import on a phone, read on another device, correct, undo, keep reports, an
 
   const fresh = new MemoryGateway();
   fresh.clock = Date.now();
-  const restored = await device(fresh, 'settings');
+  const restored = await device(fresh, 'settings/data');
   const input = restored.get('input[aria-label="Choose a backup file"]');
   Object.defineProperty(input.element, 'files', { value: [{ name: 'backup.zip', arrayBuffer: async () => bytes.slice().buffer }], configurable: true });
   await input.trigger('change');

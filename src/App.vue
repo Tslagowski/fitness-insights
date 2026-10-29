@@ -21,6 +21,7 @@ import BackupPanel from './components/BackupPanel.vue';
 import ServiceStatus from './components/ServiceStatus.vue';
 import InsightsPage from './components/InsightsPage.vue';
 import GlanceDashboard from './components/GlanceDashboard.vue';
+import PageTabs from './components/PageTabs.vue';
 import type { WrittenReport } from './analysis/report';
 import { formatCalendarDate, reportingToday } from './import/preview';
 
@@ -59,11 +60,23 @@ const hasHistory = computed(() => history.value.records.length > 0 || history.va
 let revision = 0;
 let unsubscribe = () => {};
 
+const sub = ref('');
+const pageTabs: Record<string, Array<{ id: string; label: string }>> = {
+  nutrition: [{ id: 'summary', label: 'Summary' }, { id: 'daily', label: 'Daily' }, { id: 'food', label: 'Food log' }],
+  training: [{ id: 'progress', label: 'Progress' }, { id: 'log', label: 'Log' }],
+  settings: [{ id: 'import', label: 'Import' }, { id: 'data', label: 'Data & backups' }, { id: 'preferences', label: 'Preferences' }],
+};
+const tab = computed(() => {
+  const list = pageTabs[page.value];
+  return list ? (list.some((item) => item.id === sub.value) ? sub.value : list[0].id) : sub.value;
+});
+/** Routes are #page or #page/view (for example #nutrition/daily or #insights/protein). */
 function readRoute() {
-  const route = window.location.hash.slice(1);
+  const [route, part = ''] = window.location.hash.slice(1).split('/');
   page.value = pages.some((item) => item.id === route) ? route : 'overview';
+  sub.value = decodeURIComponent(part);
 }
-function navigate(route: string) { page.value = route; }
+function navigate(route: string) { page.value = route; sub.value = ''; }
 function focusMain() { document.getElementById('main')?.focus(); }
 
 async function refreshIdentity() {
@@ -236,14 +249,15 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
 
         <template v-else-if="state === 'ready'">
           <template v-if="page === 'settings'">
-            <ImportPanel v-if="gateway" :gateway="gateway" :history="history" :history-state="historyState" :reload-history="reloadHistory" />
-            <CorrectDay v-if="gateway && historyState === 'ready' && hasHistory" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
-            <ChangeHistory v-if="gateway && historyState === 'ready' && history.imports.length" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
-            <RetentionPanel v-if="gateway && historyState === 'ready' && history.revisionId !== null" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
-            <BackupPanel v-if="gateway" :gateway="gateway" :history="history" :preferences="preferences" :reload-history="reloadHistory"
+            <PageTabs page="settings" :tabs="pageTabs.settings" :active="tab" label="Settings sections" />
+            <ImportPanel v-if="tab === 'import' && gateway" :gateway="gateway" :history="history" :history-state="historyState" :reload-history="reloadHistory" />
+            <CorrectDay v-if="tab === 'data' && gateway && historyState === 'ready' && hasHistory" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
+            <ChangeHistory v-if="tab === 'data' && gateway && historyState === 'ready' && history.imports.length" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
+            <RetentionPanel v-if="tab === 'data' && gateway && historyState === 'ready' && history.revisionId !== null" :gateway="gateway" :history="history" :reload-history="reloadHistory" />
+            <BackupPanel v-if="tab === 'data' && gateway" :gateway="gateway" :history="history" :preferences="preferences" :reload-history="reloadHistory"
               @preferences-restored="(saved) => { preferences = saved; draftDensity = saved.displayDensity; draftDurationUnit = saved.durationUnit; draftBand = saved.strengthBandPercent; draftStall = saved.stallComparisons; draftCredit = saved.secondarySetCredit; }" />
-            <ServiceStatus v-if="gateway" :gateway="gateway" />
-            <section class="section-card"><div class="section-heading"><div><div class="eyebrow">MAKE IT YOURS</div><h2>Display preferences</h2></div><span class="outline-pill">Saved to your account</span></div>
+            <ServiceStatus v-if="tab === 'data' && gateway" :gateway="gateway" />
+            <section v-if="tab === 'preferences'" class="section-card"><div class="section-heading"><div><div class="eyebrow">MAKE IT YOURS</div><h2>Display preferences</h2></div><span class="outline-pill">Saved to your account</span></div>
               <form @submit.prevent="save"><label class="field-label" for="density">Display density</label><p class="field-help">Choose how much space to leave between records.</p>
                 <select id="density" aria-label="Display density" v-model="draftDensity" :disabled="saving"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select>
                 <div class="density-preview" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -262,21 +276,23 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
                 <div class="form-footer"><span class="muted">Applies after saving.</span><button class="primary-button" type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save preference' }}</button></div>
               </form>
             </section>
-            <section class="section-card" aria-labelledby="account-heading"><div class="section-heading"><div><h2 id="account-heading">Account</h2></div><span class="outline-pill">Owner access</span></div>
+            <section v-if="tab === 'preferences'" class="section-card" aria-labelledby="account-heading"><div class="section-heading"><div><h2 id="account-heading">Account</h2></div><span class="outline-pill">Owner access</span></div>
               <p class="field-help">Signed in with GitHub as {{ identity?.name }}. Only the configured owner can open this workspace.</p>
               <button class="primary-button secondary" type="button" :disabled="signingOut" @click="signOut">{{ signingOut ? 'Signing out...' : 'Sign out' }}</button>
             </section>
-            <section class="section-card"><div class="eyebrow">CONSISTENT ACROSS DEVICES</div><h2>Reporting calendar</h2><dl class="calendar-details"><div><dt>Time zone</dt><dd>America/Denver</dd></div><div><dt>Week starts</dt><dd>Monday</dd></div></dl></section>
+            <section v-if="tab === 'preferences'" class="section-card"><div class="eyebrow">CONSISTENT ACROSS DEVICES</div><h2>Reporting calendar</h2><dl class="calendar-details"><div><dt>Time zone</dt><dd>America/Denver</dd></div><div><dt>Week starts</dt><dd>Monday</dd></div></dl></section>
           </template>
           <template v-else-if="page === 'nutrition' && (history.records.length || history.foodDays.length)">
-            <NutritionAnalysis :history="history" :report="eligibility" />
-            <section class="section-card"><div class="section-heading"><div><div class="eyebrow">IMPORTED DAILY HISTORY</div><h2>Daily records</h2></div>
+            <PageTabs page="nutrition" :tabs="pageTabs.nutrition" :active="tab" label="Nutrition views" />
+            <NutritionAnalysis v-if="tab === 'summary'" :history="history" :report="eligibility" />
+            <section v-if="tab === 'daily'" class="section-card"><div class="section-heading"><div><div class="eyebrow">IMPORTED DAILY HISTORY</div><h2>Daily records</h2></div>
               <span class="outline-pill">Version {{ history.revisionId }}</span></div>
               <p class="field-help">{{ historyDates.length }} dates, {{ formatCalendarDate(historyDates[0]) }} – {{ formatCalendarDate(historyDates[historyDates.length - 1]) }}.
                 Values are shown exactly as exported; "—" means not recorded. Intake is the sum of that day's food entries when they exist, otherwise the workbook's daily total; the two are never added together. </p>
               <DailyTable :records="history.records" :food-days="history.foodDays" :today="reportingToday()" :statuses="eligibility.days" caption="Saved daily history" />
             </section>
-            <FoodLog v-if="gateway && history.foodDays.length" :gateway="gateway" :food-days="history.foodDays" :today="reportingToday()" />
+            <FoodLog v-if="tab === 'food' && gateway && history.foodDays.length" :gateway="gateway" :food-days="history.foodDays" :today="reportingToday()" />
+            <section v-if="tab === 'food' && !history.foodDays.length" class="empty-card"><h2>No food entries yet.</h2><p>Import the MacroFactor food CSV (or a workbook with a Food Log tab) in Settings → Import to see each food you logged.</p></section>
           </template>
           <template v-else-if="page === 'overview' && gateway && historyState === 'ready' && hasHistory">
             <GlanceDashboard :gateway="gateway" :history="history" :report="eligibility" />
@@ -293,8 +309,9 @@ onUnmounted(() => { ++revision; unsubscribe(); window.removeEventListener('hashc
             <InsightsPage :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
           </template>
           <template v-else-if="page === 'training' && gateway && history.workoutDays.length">
-            <ExerciseProgress :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
-            <TrainingLog :gateway="gateway" :history="history" :duration-unit="preferences.durationUnit" :today="reportingToday()" :reload-history="reloadHistory" />
+            <PageTabs page="training" :tabs="pageTabs.training" :active="tab" label="Training views" />
+            <ExerciseProgress v-if="tab === 'progress'" :gateway="gateway" :history="history" :report="eligibility" :preferences="preferences" />
+            <TrainingLog v-if="tab === 'log'" :gateway="gateway" :history="history" :duration-unit="preferences.durationUnit" :today="reportingToday()" :reload-history="reloadHistory" />
           </template>
           <section v-else-if="page === 'nutrition' && historyState === 'error'" class="empty-card"><h2>Your saved history could not be loaded.</h2><p>Nothing has been changed. If the free Supabase project is paused, resume it in the Supabase dashboard, wait a few minutes, and try again. Recovery steps are in Imports &amp; Settings.</p><button class="primary-button" @click="reloadHistory">Try again</button></section>
           <section v-else class="empty-card data-empty"><div class="empty-mark" aria-hidden="true"><span></span><span></span><span></span></div>

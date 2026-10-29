@@ -1,6 +1,6 @@
 # 39: Organize Settings into sections
 
-**Status:** ready-for-agent
+**Status:** in-progress (implemented 2026-10-29; owner review on the phone pending)
 
 **GitHub issue:** [#24](https://github.com/Tslagowski/fitness-insights/issues/24)
 
@@ -16,3 +16,7 @@
 - [ ] UI and phone tests.
 
 **Constraints:** Primary device is an iPhone 14 Pro Max (430×932 CSS px, notch and home indicator); every change is verified at 390px and 430px with no horizontal page scroll. Presentation only: calculations, method versions, eligibility, and evidence stay exactly as they are and remain reachable. Hosting stays GitHub Pages plus Supabase Free; no new paid services or tracking.
+
+## Implementation evidence (2026-10-29)
+
+Built with ticket 31's tabs: Import (choose files, preview, saved history), Data & backups (correct a day, change history and undo, version retention, backup and restore, service and storage), Preferences (display, analysis settings, account and sign out, reporting calendar), at `#settings/import`, `#settings/data`, `#settings/preferences`. Every existing setting and action is unchanged; appearance (ticket 35) joins Preferences. Verified by the updated UI tests and `tests/browser/tabs.spec.ts`.

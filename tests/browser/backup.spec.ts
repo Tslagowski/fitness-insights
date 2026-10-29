@@ -49,7 +49,7 @@ test('on a phone, the owner downloads a backup and restores it after reviewing a
   });
   await context.route('https://test-project.supabase.co/**', serve);
   const page = await context.newPage();
-  await page.goto('./#settings');
+  await page.goto('./#settings/data');
 
   const panel = page.locator('section.backup-panel');
   const [download] = await Promise.all([page.waitForEvent('download'), panel.getByRole('button', { name: 'Download backup' }).click()]);

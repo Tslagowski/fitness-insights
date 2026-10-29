@@ -70,7 +70,7 @@ test('a wider band changes the label, and the band is saved as a preference', as
   const gateway = await seeded(10);
   const app = await open(gateway);
   expect(app.get('[aria-label="Selected exercise"]').text()).toContain('● Stable');
-  const settings = await open(gateway, 'settings');
+  const settings = await open(gateway, 'settings/preferences');
   await settings.get('#strength-band').setValue('5');
   await settings.get('#stall-comparisons').setValue('4');
   await settings.get('#secondary-credit').setValue('0.5');

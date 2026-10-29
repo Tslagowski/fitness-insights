@@ -1,8 +1,11 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { expect, test } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
+
+afterEach(() => { window.location.hash = ''; });
 import App from '../src/App.vue';
 import { defaultPreferences } from '../src/gateway';
 import { MemoryGateway } from './fixtures/memory-gateway';
+import { go } from './fixtures/navigation';
 
 
 test('the owner saves density and sees the saved choice on a fresh app instance', async () => {
@@ -10,6 +13,7 @@ test('the owner saves density and sees the saved choice on a fresh app instance'
   const firstDevice = mount(App, { props: { gateway } });
   await flushPromises();
   await firstDevice.get('a[href="#settings"]').trigger('click');
+  await go('settings/preferences');
   await firstDevice.get('select[aria-label="Display density"]').setValue('compact');
   await firstDevice.get('form').trigger('submit');
   await flushPromises();
@@ -19,6 +23,7 @@ test('the owner saves density and sees the saved choice on a fresh app instance'
   const secondDevice = mount(App, { props: { gateway } });
   await flushPromises();
   await secondDevice.get('a[href="#settings"]').trigger('click');
+  await go('settings/preferences');
   expect((secondDevice.get('select').element as HTMLSelectElement).value).toBe('compact');
   expect(secondDevice.text()).toContain('America/Denver');
   secondDevice.unmount();
@@ -30,6 +35,7 @@ test('an unauthorized account cannot open preferences', async () => {
   const app = mount(App, { props: { gateway } });
   await flushPromises();
   await app.get('a[href="#settings"]').trigger('click');
+  await go('settings/preferences');
   expect(app.text()).toContain('This account does not have access');
   expect(app.find('select').exists()).toBe(false);
   app.unmount();
@@ -41,6 +47,7 @@ test('a failed save keeps the last confirmed preference and supports retry', asy
   const app = mount(App, { props: { gateway } });
   await flushPromises();
   await app.get('a[href="#settings"]').trigger('click');
+  await go('settings/preferences');
   await app.get('select').setValue('compact');
   await app.get('form').trigger('submit');
   await flushPromises();

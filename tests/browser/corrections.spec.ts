@@ -55,7 +55,7 @@ test('on a phone, the owner clears one day of weight and undoes it', async ({ br
   });
   await context.route('https://test-project.supabase.co/**', serve);
   const page = await context.newPage();
-  await page.goto('./#settings');
+  await page.goto('./#settings/data');
 
   await page.getByLabel('Date', { exact: true }).selectOption('2026-09-02');
   await page.getByLabel('Data', { exact: true }).selectOption('scale_weight');

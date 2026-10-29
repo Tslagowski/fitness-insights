@@ -15,7 +15,7 @@ async function until(condition: () => boolean, what: string) {
   }
   throw new Error(`Timed out waiting for ${what}`);
 }
-async function open(gateway: MemoryGateway, page = 'settings') {
+async function open(gateway: MemoryGateway, page = 'settings/data') {
   window.location.hash = `#${page}`;
   const app = mount(App, { props: { gateway }, attachTo: document.body });
   mounted.push(app);
@@ -54,7 +54,7 @@ test('an import that would cross 90% is stopped before saving, with guidance; ex
   const gateway = await seededGateway();
   gateway.capacityStatus = { ...gateway.capacityStatus, databaseBytes: 480_000_000 };
   const before = gateway.active.length;
-  const app = await open(gateway);
+  const app = await open(gateway, 'settings/import');
   await previewImport(app, 12345);
   await confirmImport(app);
   expect(app.get('[role="alert"]').text()).toContain('the app stops at 90%). Nothing was changed.');
@@ -65,7 +65,7 @@ test('an import that would cross 90% is stopped before saving, with guidance; ex
 test("if the database's own hard stop refuses an import, the app says so and a later retry saves once", async () => {
   const gateway = await seededGateway();
   gateway.databaseFull = true;
-  const app = await open(gateway);
+  const app = await open(gateway, 'settings/import');
   await previewImport(app, 23456);
   await confirmImport(app);
   expect(app.get('[role="alert"]').text()).toContain('nearly full, so nothing new was saved. Your existing data is unchanged.');

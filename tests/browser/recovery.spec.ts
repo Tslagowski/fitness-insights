@@ -27,7 +27,7 @@ test('on a phone, Settings shows storage usage against the free limits and the r
     return route.fulfill({ json: {} });
   });
   const page = await context.newPage();
-  await page.goto('./#settings');
+  await page.goto('./#settings/data');
   const panel = page.locator('section.service-status');
   await expect(panel.getByRole('meter', { name: 'Database usage' })).toHaveAttribute('aria-valuetext', '92% used, Nearly full: new imports are paused');
   await expect(panel).toContainText('✓ Plenty of room · 1% used');

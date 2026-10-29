@@ -69,6 +69,7 @@ test('on a phone, the owner imports workouts, reads sessions as logged, and alia
   expect(uploads.map((path) => path.replace(/[0-9a-f]{64}/, 'SHA'))).toEqual(['/storage/v1/object/source-archives/workout-csv/SHA.csv']);
 
   await page.getByRole('link', { name: 'Training' }).click();
+  await page.getByRole('navigation', { name: 'Training views' }).getByRole('link', { name: 'Log' }).click();
   await page.getByRole('button', { name: /^Tue 1\b/ }).click();
   await expect(page.locator('.workout-session')).toContainText('Duration 48 min 32 s (read as seconds, unverified; raw 2912)');
   await expect(page.getByRole('list', { name: 'Neutral Grip Machine-Assisted Pull-Up ∈ SS1 sets' })).toContainText('-100 lb assistance × 6');

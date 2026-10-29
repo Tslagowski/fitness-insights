@@ -46,7 +46,7 @@ test('a mobile owner saves density and a separate browser restores it', async ({
   await phone.route('https://test-project.supabase.co/**', serve);
   await authenticate(phone);
   const mobile = await phone.newPage();
-  await mobile.goto('./#settings');
+  await mobile.goto('./#settings/preferences');
   await expect(mobile.getByLabel('Display density')).toBeVisible();
   await mobile.getByLabel('Display density').selectOption('compact');
   await mobile.getByRole('button', { name: 'Save preference' }).click();
@@ -59,7 +59,7 @@ test('a mobile owner saves density and a separate browser restores it', async ({
   await computer.route('https://test-project.supabase.co/**', serve);
   await authenticate(computer);
   const desktop = await computer.newPage();
-  await desktop.goto('./#settings');
+  await desktop.goto('./#settings/preferences');
   await expect(desktop.getByLabel('Display density')).toHaveValue('compact');
   await desktop.reload();
   await expect(desktop.getByLabel('Display density')).toHaveValue('compact');

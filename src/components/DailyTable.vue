@@ -88,7 +88,7 @@ const mobileRows = computed<DataRow[]>(() => rows.value.map((row) => {
     <div class="segmented view-switch" role="group" :aria-label="`${caption}: values shown`">
       <button v-for="item in views" :key="item.id" type="button" :aria-pressed="view === item.id" @click="view = item.id">{{ item.label }}</button>
     </div>
-    <DataRows :rows="mobileRows" :label="caption" :page-size="30" unit="days" />
+    <DataRows :rows="mobileRows" :label="caption" :page-size="14" unit="days" />
   </template>
   <div v-else class="table-scroll" role="region" :aria-label="caption" tabindex="0">
     <table class="daily-table">

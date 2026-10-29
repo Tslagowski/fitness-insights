@@ -21,13 +21,13 @@ h3 { font-weight: 560; }
 .brand-symbol i:nth-child(2) { height: 27px; }
 .brand-symbol i:nth-child(3) { height: 36px; }
 .workspace-label { font-size: 9px; letter-spacing: 1.8px; color: #adbbb4; padding: 0 14px 20px; }
-nav { display: flex; flex-direction: column; gap: 8px; }
-nav a { display: flex; gap: 15px; align-items: center; text-decoration: none; font-size: 12px; font-weight: 500; padding: 15px 13px; color: #b8c8c2; border-radius: 7px; min-height: 48px; }
-nav a:hover { background: #243c36; }
-nav a[aria-current] { background: #2d443b; color: #e2edcd; }
+.sidebar nav { display: flex; flex-direction: column; gap: 8px; }
+.sidebar nav a { display: flex; gap: 15px; align-items: center; text-decoration: none; font-size: 12px; font-weight: 500; padding: 15px 13px; color: #b8c8c2; border-radius: 7px; min-height: 48px; }
+.sidebar nav a:hover { background: #243c36; }
+.sidebar nav a[aria-current] { background: #2d443b; color: #e2edcd; }
 .nav-number { font-size: 10px; opacity: .6; letter-spacing: 1px; }
 .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: transparent; margin-left: auto; }
-nav a[aria-current] .nav-dot { background: #d2e3b5; }
+.sidebar nav a[aria-current] .nav-dot { background: #d2e3b5; }
 .mobile-label { display: none; }
 .sidebar-note { margin: auto 14px 58px; }
 .small-rule { display: block; width: 24px; height: 2px; background: #839771; margin-bottom: 22px; }
@@ -535,3 +535,12 @@ input[type=file] { max-width: 100%; min-width: 0; font-size: 12px; }
   main { padding-top: 16px; }
 }
 .primary-button.secondary { background: transparent; color: #172b29; border: 1px solid #172b29; }
+/* Tickets 31 and 39: page tabs */
+.page-tabs { display: flex; flex-direction: row; gap: 4px; padding: 4px; margin: 0 0 18px; background: #e9eee3; border-radius: 12px; position: sticky; top: 8px; z-index: 9; overflow-x: auto; scrollbar-width: none; }
+.page-tabs::-webkit-scrollbar { display: none; }
+.page-tabs a { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px 14px; min-height: 40px; border-radius: 9px; font-size: 14px; font-weight: 600; color: #3c5148; text-decoration: none; white-space: nowrap; }
+.page-tabs a[aria-current=page] { background: #fffefa; color: #172b29; box-shadow: 0 1px 3px rgba(23, 43, 41, .14); }
+@media (max-width: 760px) {
+  .sidebar { height: calc(52px + env(safe-area-inset-top)); min-height: 0; }
+  .page-tabs { top: calc(58px + env(safe-area-inset-top)); margin: 0 -4px 16px; }
+}
