@@ -230,6 +230,18 @@ Implement the approved vertical slices in dependency order. Full acceptance deta
 | 25 | Add long-range reviews and dated notes | Implemented; owner review pending (issue #10) |
 | 26 | Make data lists readable on phones | Implemented; owner review pending (issue #11) |
 | 27 | Import the full MacroFactor data export | Implemented; owner import pending (issue #12) |
+| 28 | Turn the Overview into a glance dashboard | Ready (issue #13) |
+| 29 | Slim the page header | Ready (issue #14) |
+| 30 | Install as a home-screen app | Ready (issue #15) |
+| 31 | Split long pages into tabs | Ready (issue #16) |
+| 32 | Show Insights as a grid of summary cards | Ready (issue #17) |
+| 33 | Tuck method labels and fine print behind an info control | Ready (issue #18) |
+| 34 | Add icons to the bottom navigation | Ready (issue #19) |
+| 35 | Support dark mode | Ready (issue #20) |
+| 36 | Make charts touch-friendly | Ready (issue #21) |
+| 37 | Unify the visual style | Ready (issue #22) |
+| 38 | Make daily list rows more informative | Ready (issue #23) |
+| 39 | Organize Settings into sections | Ready (issue #24) |
 
 ## 7. Acceptance criteria
 
