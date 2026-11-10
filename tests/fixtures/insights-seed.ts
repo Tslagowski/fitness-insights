@@ -7,7 +7,8 @@ import type { WorkoutDay, WorkoutSet } from '../../src/import/workout';
  * - weeks 1-10 losing 1 lb/week (intake 2,000, expenditure 2,700), weeks 11-18 flat at 240 lb
  *   (intake 2,600, expenditure 2,600), weeks 19-24 gaining 0.5 lb/week (intake 2,900, expenditure 2,650);
  * - Saturdays: scale 1 lb above trend, 4,000 steps, +500 kcal; protein 170 g on weekdays, 140 g on weekends;
- * - food detail for the last 28 days, when the calorie target is 2,900 (2,200 before) (Saturday pizza at 9:15 PM; one entry without a time; repeated eggs);
+ * - food detail for the last 28 days, when the calorie target is 2,900 (2,200 before) (Saturday pizza at 9:15 PM; repeated eggs; one entry without a time
+ *   on the last Wednesday, so the result does not depend on the run date and no weekend reaches the protein target);
  * - Monday/Wednesday/Friday workouts: Bench Press, Back Squat, Cable Row, Assisted Pull-Up, Plank.
  */
 const shift = (date: string, days: number) => { const [y, m, d] = date.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10); };
@@ -48,7 +49,7 @@ export function insightsSeed(end: string): InsightsSeed {
       const extra = calories - used - (saturday ? 900 : 0);
       if (extra > 0) entries.push(entry('3:00 PM', 'Greek yogurt', extra, Math.max(protein - 142, 0)));
       if (saturday) entries.push(entry('9:15 PM', 'Pizza', 900, 0));
-      if (index === seedDays - 3) { const bar = entry('', 'Protein bar', 200, 20); delete bar.Time; entries.push(bar); }
+      if (index >= seedDays - 7 && day === 2) { const bar = entry('', 'Protein bar', 200, 20); delete bar.Time; entries.push(bar); }
       food.push({ date, source: 'food_csv', entries });
     }
     if (day === 0 || day === 2 || day === 4) {
