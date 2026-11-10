@@ -99,9 +99,12 @@ test('protein per lb shows the ratio, target consistency, weekly series, and mis
   expect(section.text()).toContain('Method protein-per-lb-v1');
   const tiles = section.findAll('.metric-tile');
   expect(tiles[0].text()).toMatch(/0\.\d\d g\/lb/);
-  // Weekends (140 g) miss the 160 g target; weekdays (170 g) meet it: 60 of 84 days.
-  expect(tiles[1].text()).toContain('60 of 84 days');
-  expect(section.find('h3.subheading').text()).toContain('(24)');
+  // Weekends (140 g) miss the 160 g target; weekdays (170 g) meet it: 60 of 84 days. The seeded protein bar
+  // (+20 g, two days before the end) lifts a weekend day to 162 g, so it counts as met when it lands on one.
+  const [year, month, day] = addDays(yesterday, -2).split('-').map(Number);
+  const barDayIsWeekend = [0, 6].includes(new Date(Date.UTC(year, month - 1, day)).getUTCDay());
+  expect(tiles[1].text()).toContain(`${barDayIsWeekend ? 61 : 60} of 84 days`);
+  expect(section.find('h3.subheading').text()).toContain(`(${barDayIsWeekend ? 23 : 24})`);
   expect(section.find('tbody tr').text()).toMatch(/14\d g160 g−\d+ g/);
   expect(section.text()).toContain('no other amount is recommended');
 });
