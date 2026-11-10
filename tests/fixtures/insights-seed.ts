@@ -48,7 +48,8 @@ export function insightsSeed(end: string): InsightsSeed {
       const extra = calories - used - (saturday ? 900 : 0);
       if (extra > 0) entries.push(entry('3:00 PM', 'Greek yogurt', extra, Math.max(protein - 142, 0)));
       if (saturday) entries.push(entry('9:15 PM', 'Pizza', 900, 0));
-      if (index === seedDays - 3) { const bar = entry('', 'Protein bar', 200, 20); delete bar.Time; entries.push(bar); }
+      // Small protein so this untimed entry cannot lift a weekend (142 g detail) to the 160 g target on any date.
+      if (index === seedDays - 3) { const bar = entry('', 'Protein bar', 200, 2); delete bar.Time; entries.push(bar); }
       food.push({ date, source: 'food_csv', entries });
     }
     if (day === 0 || day === 2 || day === 4) {
