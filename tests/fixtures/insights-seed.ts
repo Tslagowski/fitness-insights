@@ -46,9 +46,13 @@ export function insightsSeed(end: string): InsightsSeed {
       const entries = [entry('7:30 AM', 'Egg', 70, 6), entry('7:30 AM', 'Egg', 70, 6), entry('12:30 PM', 'Chicken bowl', 900, 60), entry('6:30 PM', 'Salmon dinner', 1100, 70)];
       const used = entries.reduce((sum, item) => sum + (item['Calories (kcal)'] as number), 0);
       const extra = calories - used - (saturday ? 900 : 0);
-      if (extra > 0) entries.push(entry('3:00 PM', 'Greek yogurt', extra, Math.max(protein - 142, 0)));
+      // The bar's protein is offset against the yogurt so the day's total still equals the workbook protein (140 g weekend, 170 g weekday).
+      const barDay = index === seedDays - 3;
+      const yogurtGrams = Math.max(protein - 142, 0);
+      const barGrams = barDay ? Math.min(20, yogurtGrams) : 0;
+      if (extra > 0) entries.push(entry('3:00 PM', 'Greek yogurt', extra, yogurtGrams - barGrams));
       if (saturday) entries.push(entry('9:15 PM', 'Pizza', 900, 0));
-      if (index === seedDays - 3) { const bar = entry('', 'Protein bar', 200, 20); delete bar.Time; entries.push(bar); }
+      if (barDay) { const bar = entry('', 'Protein bar', 200, barGrams); delete bar.Time; entries.push(bar); }
       food.push({ date, source: 'food_csv', entries });
     }
     if (day === 0 || day === 2 || day === 4) {
