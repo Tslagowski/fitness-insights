@@ -22,6 +22,9 @@ export function insightsSeed(end: string): InsightsSeed {
   const food: FoodDay[] = [];
   const workouts: WorkoutDay[] = [];
   let session = 0;
+  // The untimed bar goes on the last weekday on or before two days ago, so it never decides whether a day meets the protein target.
+  let barDate = shift(end, -2);
+  while (weekday(barDate) >= 5) barDate = shift(barDate, -1);
   for (let index = 0; index < seedDays; index += 1) {
     const date = shift(first, index);
     const day = weekday(date);
@@ -48,7 +51,7 @@ export function insightsSeed(end: string): InsightsSeed {
       const extra = calories - used - (saturday ? 900 : 0);
       if (extra > 0) entries.push(entry('3:00 PM', 'Greek yogurt', extra, Math.max(protein - 142, 0)));
       if (saturday) entries.push(entry('9:15 PM', 'Pizza', 900, 0));
-      if (index === seedDays - 3) { const bar = entry('', 'Protein bar', 200, 20); delete bar.Time; entries.push(bar); }
+      if (date === barDate) { const bar = entry('', 'Protein bar', 200, 20); delete bar.Time; entries.push(bar); }
       food.push({ date, source: 'food_csv', entries });
     }
     if (day === 0 || day === 2 || day === 4) {
