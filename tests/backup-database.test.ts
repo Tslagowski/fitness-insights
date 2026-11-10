@@ -5,7 +5,7 @@ import { asIdentity, createTestDatabase, ownerId, strangerId } from './fixtures/
 
 let source: PGlite;
 let target: PGlite;
-beforeAll(async () => { [source, target] = await Promise.all([createTestDatabase(), createTestDatabase()]); });
+beforeAll(async () => { [source, target] = await Promise.all([createTestDatabase(), createTestDatabase()]); }, 60_000);
 afterAll(async () => { await Promise.all([source.close(), target.close()]); });
 
 let counter = 0;
