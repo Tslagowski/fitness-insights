@@ -6,6 +6,7 @@ import { reportingToday } from '../src/import/preview';
 import { MemoryGateway } from './fixtures/memory-gateway';
 import { seededGateway } from './fixtures/insights-gateway';
 import { go } from './fixtures/navigation';
+import { insightsSeed } from './fixtures/insights-seed';
 
 const mounted: VueWrapper[] = [];
 afterEach(() => { mounted.splice(0).forEach((wrapper) => wrapper.unmount()); window.location.hash = ''; });
@@ -297,4 +298,15 @@ test('insights open on a grid of topic cards with headline results, and a topic 
   expect(app.find('[aria-labelledby="protein-heading"]').exists()).toBe(true);
   expect(app.find('.back-link').attributes('href')).toBe('#insights');
   expect(app.find('.insight-grid').exists()).toBe(false);
+});
+
+test('seeded protein meets the 160 g target on 60 of 84 days for every weekday of the end date', () => {
+  for (let offset = 0; offset < 7; offset += 1) {
+    const end = addDays('2026-11-04', offset);
+    const seed = insightsSeed(end);
+    const detail = new Map(seed.food.map((day) => [day.date, day.entries.reduce((sum, item) => sum + Number(item['Protein (g)']), 0)]));
+    const met = seed.daily.filter((record) => record.domain === 'nutrition_totals').slice(-84)
+      .filter((record) => (detail.get(record.date) ?? Number(record.values['Protein (g)'])) >= 160).length;
+    expect(met, `end ${end}`).toBe(60);
+  }
 });
