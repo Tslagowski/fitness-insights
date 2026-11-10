@@ -24,6 +24,8 @@ npm run test:browser
 
 Database tests run the actual migration against embedded PostgreSQL with representative Supabase auth claims. Browser tests stub Supabase's network boundary; they verify the real frontend and adapter, not live GitHub login or cloud synchronization. Hosted verification remains separate.
 
+Each PGlite instance embeds a WASM PostgreSQL that needs a few hundred MB, and the default Vitest worker count got workers killed on 8 GB machines. `vitest.config.ts` therefore runs every test file that imports `@electric-sql/pglite` (`tests/access.test.ts`, `tests/*-database.test.ts`) in a separate `database` project capped at 2 workers; all other tests stay in the parallel `unit` project. The cap also applies to the migrate workflow's `npx vitest run ...`. New PGlite-backed test files must match those globs (or be added to `pgliteTests`) and close their instance in `afterAll`.
+
 ## Connect the free services
 
 1. Create/select your Supabase Free project. Do not enable a paid plan. Database changes are applied by the `Database migrations` GitHub Actions workflow (see "Database changes" below); add its two secrets first. The migrations initially allow nobody to access app data. (Fallback without the workflow: run each file in `supabase/migrations/` once in the SQL editor, in filename order.)
